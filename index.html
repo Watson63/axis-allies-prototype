@@ -8,7 +8,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
   <style>
-    body { font-family: sans-serif; margin: 0; background: #f2f2f2; }
+    body { font-family: sans-serif; margin: 0; background: #f2f2f2; text-align: center; }
     #board { 
       display: grid; 
       grid-template-columns: repeat(5, 100px); 
@@ -40,6 +40,11 @@
       color: white;
       font-weight: bold;
     }
+    select {
+      margin-top: 10px;
+      padding: 5px;
+      font-size: 14px;
+    }
   </style>
 </head>
 <body>
@@ -53,6 +58,14 @@
 
   <div v-else>
     <h2>Welcome, {{ user.email }}</h2>
+    <div>
+      <label><strong>Select Unit Type:</strong></label><br>
+      <select v-model="selectedUnitType">
+        <option v-for="type in unitTypes" :key="type" :value="type">
+          {{ type }}
+        </option>
+      </select>
+    </div>
     <div id="board">
       <div
         v-for="id in territoryOrder"
@@ -106,7 +119,9 @@ const app = Vue.createApp({
       password: '',
       map: {},
       selected: null,
-      territoryOrder: ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"], // now 10 territories
+      territoryOrder: ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"],
+      unitTypes: ["infantry", "tank", "artillery", "fighter", "bomber"],
+      selectedUnitType: "infantry"
     };
   },
   methods: {
@@ -123,7 +138,7 @@ const app = Vue.createApp({
       const snap = await ref.get();
       const data = snap.data();
 
-      if (!data.map[id]) data.map[id] = { units: [] }; // ensure territory exists
+      if (!data.map[id]) data.map[id] = { units: [] };
 
       if (this.selected) {
         // MOVE phase
@@ -143,11 +158,10 @@ const app = Vue.createApp({
         if (ownUnit) {
           this.selected = { from: id, unit: ownUnit };
         } else {
-          // choose a random unit type (demo)
-          const unitTypes = ["infantry", "tank", "artillery"];
+          // place chosen type
           const newUnit = {
             id: Date.now(),
-            type: unitTypes[Math.floor(Math.random() * unitTypes.length)],
+            type: this.selectedUnitType,
             owner: this.user.email,
             color: colorForUser(this.user.email)
           };
@@ -161,14 +175,12 @@ const app = Vue.createApp({
       const ref = db.doc("games/demoGame");
       const snap = await ref.get();
       if (!snap.exists) {
-        // initialize all 10 territories
         const newMap = {};
         this.territoryOrder.forEach(id => {
           newMap[id] = { units: [] };
         });
         await ref.set({ map: newMap });
       } else {
-        // patch missing territories (in case you add new ones later)
         const data = snap.data();
         let changed = false;
         this.territoryOrder.forEach(id => {
