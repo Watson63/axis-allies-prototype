@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Axis & Allies Prototype - Battle System</title>
+  <title>Axis & Allies Prototype - Unit Selection Fix</title>
   <script src="https://unpkg.com/vue@3.4.27/dist/vue.global.prod.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
@@ -12,7 +12,8 @@
     #board { display: grid; grid-template-columns: repeat(5, 100px); gap: 8px; padding: 20px; justify-content: center; }
     .territory { background: white; border: 2px solid #333; height: 100px; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; cursor: pointer; }
     .territory.selected { border-color: #007bff; box-shadow: 0 0 10px rgba(0,0,255,0.5); }
-    .unit { font-size: 11px; padding: 4px 6px; border-radius: 4px; margin: 3px 0; color: white; font-weight: bold; }
+    .unit { font-size: 11px; padding: 4px 6px; border-radius: 4px; margin: 3px 0; color: white; font-weight: bold; cursor: pointer; }
+    .unit.selected { border: 2px solid yellow; }
     .battle-log { background: white; padding: 10px; margin: 10px auto; border-radius: 8px; width: 60%; }
     .dice { width: 30px; height: 30px; background: #fff; border: 2px solid #333; display: inline-flex; align-items: center; justify-content: center; font-weight: bold; margin: 5px; border-radius: 4px; transition: transform 0.3s ease; }
     .rolling { transform: rotate(360deg); }
@@ -37,7 +38,7 @@
         :key="id"
         class="territory"
         :class="{ selected: selected && selected.from === id }"
-        @click="handleTerritoryClick(id)"
+        @click="selectTerritory(id)"
       >
         <strong>{{ id }}</strong>
         <div 
@@ -45,6 +46,8 @@
           :key="u.id" 
           class="unit"
           :style="{ backgroundColor: u.color || '#999' }"
+          :class="{ selected: selected && selected.unit && selected.unit.id === u.id }"
+          @click.stop="selectUnit(id, u)"
         >
           {{ u.type }}
         </div>
@@ -113,49 +116,48 @@ const app = Vue.createApp({
       }
     },
 
-    async handleTerritoryClick(id) {
+    async selectTerritory(id) {
+      // If a unit is selected, move/attack
+      if (this.selected && this.selected.unit) {
+        await this.moveOrBattle(id);
+        return;
+      }
+
+      // Otherwise just highlight territory
+      this.selected = { from: id, unit: null };
+    },
+
+    selectUnit(territoryId, unit) {
+      if (unit.owner !== this.user.email) return;
+      this.selected = { from: territoryId, unit };
+    },
+
+    async moveOrBattle(id) {
       const ref = db.doc("games/demoGame");
       const snap = await ref.get();
       const data = snap.data();
+      const fromId = this.selected.from;
+      const unit = this.selected.unit;
 
-      if (this.selected) {
-        const fromId = this.selected.from;
-        const unit = this.selected.unit;
+      const defenderPresent = data.map[id].units.some(u => u.owner !== this.user.email);
 
-        const defenderPresent = data.map[id].units.some(u => u.owner !== this.user.email);
-        if (defenderPresent) {
-          // start battle
-          this.battle = {
-            active: true,
-            location: id,
-            attackers: [unit],
-            defenders: data.map[id].units,
-            phase: 'attack',
-            log: [`Battle starts in ${id}!`]
-          };
-          this.selected = null;
-          return;
-        }
-
-        data.map[fromId].units = data.map[fromId].units.filter(u => u.id !== unit.id);
-        data.map[id].units.push(unit);
+      if (defenderPresent) {
+        this.battle = {
+          active: true,
+          location: id,
+          attackers: [unit],
+          defenders: data.map[id].units,
+          phase: 'attack',
+          log: [`Battle starts in ${id}!`]
+        };
         this.selected = null;
-        await ref.update({ map: data.map });
-      } else {
-        const territory = data.map[id];
-        const ownUnit = territory.units.find(u => u.owner === this.user.email);
-        if (ownUnit) this.selected = { from: id, unit: ownUnit };
-        else {
-          const newUnit = {
-            id: Date.now(),
-            type: "infantry",
-            owner: this.user.email,
-            color: colorForUser(this.user.email)
-          };
-          territory.units.push(newUnit);
-          await ref.update({ map: data.map });
-        }
+        return;
       }
+
+      data.map[fromId].units = data.map[fromId].units.filter(u => u.id !== unit.id);
+      data.map[id].units.push(unit);
+      this.selected = null;
+      await ref.update({ map: data.map });
     },
 
     async rollDice(role) {
@@ -168,11 +170,9 @@ const app = Vue.createApp({
       this.battle.log.push(`${role} rolled: ${this.dice.join(', ')} — ${hits} hit(s)`);
 
       if (role === 'attack') {
-        // defenders fire back next
         this.battle.phase = 'defend';
         this.battle.tempHits = hits;
       } else {
-        // defenders get one final fire back
         const defenderHits = hits;
         const attackHits = this.battle.tempHits || 0;
 
@@ -189,7 +189,6 @@ const app = Vue.createApp({
           return;
         }
 
-        // continue next round
         this.battle.phase = 'attack';
       }
     }
