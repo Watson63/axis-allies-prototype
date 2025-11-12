@@ -64,13 +64,31 @@ const app = Vue.createApp({
       }
     },
     async placeUnit(id) {
-      const ref = db.doc("games/demoGame");
-      const snap = await ref.get();
-      const data = snap.data();
-      const territory = data.map[id];
-      territory.units.push({ id: Date.now(), type: "infantry", owner: this.user.email });
-      await ref.update({ map: data.map });
+    const ref = db.doc("games/demoGame");
+    const snap = await ref.get();
+    const data = snap.data();
+
+    if (this.selected) {
+      // move unit
+      const fromId = this.selected.from;
+      const unit = this.selected.unit;
+      // remove from old
+      data.map[fromId].units = data.map[fromId].units.filter(u => u.id !== unit.id);
+      // add to new
+      data.map[id].units.push(unit);
+      this.selected = null;
+    } else {
+      // select your own unit if exists here
+      const unit = data.map[id].units.find(u => u.owner === this.user.email);
+      if (unit) {
+        this.selected = { from: id, unit };
+      } else {
+        // place new infantry
+        data.map[id].units.push({ id: Date.now(), type: "infantry", owner: this.user.email });
+      }
     }
+    await ref.update({ map: data.map });
+  }
   },
   mounted() {
     auth.onAuthStateChanged(u => { this.user = u; });
