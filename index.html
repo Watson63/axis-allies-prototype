@@ -9,13 +9,34 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
   <style>
     body { font-family: sans-serif; margin: 0; background: #f2f2f2; }
-    #board { display: grid; grid-template-columns: repeat(5, 100px); gap: 8px; padding: 20px; }
-    .territory { width: 100px; height: 100px; background: white; border: 1px solid #333; display:flex; align-items:center; justify-content:center; cursor:pointer; }
-    .unit {
-      font-size: 12px;
-      padding: 3px 5px;
-      border-radius: 3px;
-      margin-top: 4px;
+    #board { 
+      display: grid; 
+      grid-template-columns: repeat(5, 100px); 
+      gap: 8px; 
+      padding: 20px; 
+      justify-content: center;
+    }
+    .territory { 
+      width: 100px; 
+      height: 100px; 
+      background: white; 
+      border: 2px solid #333; 
+      display: flex; 
+      flex-direction: column;
+      align-items: center; 
+      justify-content: flex-start; 
+      cursor: pointer; 
+      transition: border 0.2s ease;
+    }
+    .territory.selected {
+      border: 3px solid #007bff;
+      box-shadow: 0 0 10px rgba(0,0,255,0.5);
+    }
+    .unit { 
+      font-size: 11px; 
+      padding: 4px 6px; 
+      border-radius: 4px; 
+      margin: 3px 0; 
       color: white;
       font-weight: bold;
     }
@@ -29,15 +50,24 @@
     <input v-model="password" type="password" placeholder="Password"><br>
     <button @click="login">Login / Register</button>
   </div>
+
   <div v-else>
     <h2>Welcome, {{ user.email }}</h2>
     <div id="board">
-      <div v-for="(territory, id) in map":key="id" class="territory" @click="handleTerritoryClick(id)">
-        <div>{{ id }}</div>
-        <div v-for="u in territory.units" 
-             :key="u.id" 
-             class="unit" 
-             :style="{ background: u.color }">
+      <div
+        v-for="id in territoryOrder"
+        :key="id"
+        class="territory"
+        :class="{ selected: selected && selected.from === id }"
+        @click="handleTerritoryClick(id)"
+      >
+        <strong>{{ id }}</strong>
+        <div 
+          v-for="u in map[id]?.units || []" 
+          :key="u.id" 
+          class="unit"
+          :style="{ backgroundColor: u.color || '#999' }"
+        >
           {{ u.type }}
         </div>
       </div>
@@ -58,11 +88,13 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 
+// 🎨 consistent color per user (hashing email)
 function colorForUser(email) {
-  // deterministic color based on email
   const colors = ["#e74c3c", "#3498db", "#2ecc71", "#f1c40f", "#9b59b6", "#1abc9c"];
   let hash = 0;
-  for (let i = 0; i < email.length; i++) hash = email.charCodeAt(i) + ((hash << 5) - hash);
+  for (let i = 0; i < email.length; i++) {
+    hash = email.charCodeAt(i) + ((hash << 5) - hash);
+  }
   return colors[Math.abs(hash) % colors.length];
 }
 
@@ -73,8 +105,9 @@ const app = Vue.createApp({
       email: '',
       password: '',
       map: {},
-      selected: null // track which territory is selected
-    }
+      selected: null,
+      territoryOrder: ["A", "B", "C", "D", "E"] // fixed layout order
+    };
   },
   methods: {
     async login() {
@@ -86,61 +119,53 @@ const app = Vue.createApp({
     },
 
     async handleTerritoryClick(id) {
-      if (!this.selected) {
-        // Select a territory that has your units
-        this.selected = id;
-      } else if (this.selected === id) {
-        // Deselect if you click again
+      const ref = db.doc("games/demoGame");
+      const snap = await ref.get();
+      const data = snap.data();
+
+      if (this.selected) {
+        // MOVE PHASE
+        const fromId = this.selected.from;
+        const unit = this.selected.unit;
+
+        // remove unit from previous territory
+        data.map[fromId].units = data.map[fromId].units.filter(u => u.id !== unit.id);
+
+        // add unit to target territory
+        data.map[id].units.push(unit);
+
         this.selected = null;
+        await ref.update({ map: data.map });
       } else {
-        // Move one infantry from selected → clicked
-        await this.moveUnit(this.selected, id);
-        this.selected = null;
+        // SELECT or PLACE PHASE
+        const territory = data.map[id];
+        const ownUnit = territory.units.find(u => u.owner === this.user.email);
+
+        if (ownUnit) {
+          // select an existing unit
+          this.selected = { from: id, unit: ownUnit };
+        } else {
+          // place new unit
+          const newUnit = {
+            id: Date.now(),
+            type: "infantry",
+            owner: this.user.email,
+            color: colorForUser(this.user.email)
+          };
+          territory.units.push(newUnit);
+          await ref.update({ map: data.map });
+        }
       }
-    },
-
-    async moveUnit(fromId, toId) {
-      const ref = db.doc("games/demoGame");
-      const snap = await ref.get();
-      const data = snap.data();
-
-      const from = data.map[fromId];
-      const to = data.map[toId];
-
-      // Find one of your units to move
-      const idx = from.units.findIndex(u => u.owner === this.user.email);
-      if (idx === -1) return alert("No units to move from " + fromId);
-
-      const [unit] = from.units.splice(idx, 1);
-      to.units.push(unit);
-
-      await ref.update({ map: data.map });
-    },
-
-    async placeUnit(id) {
-      const ref = db.doc("games/demoGame");
-      const snap = await ref.get();
-      const data = snap.data();
-      const territory = data.map[id];
-      const newUnit = {
-        id: Date.now(),
-        type: "infantry",
-        owner: this.user.email,
-        color: colorForUser(this.user.email)
-      };
-      territory.units.push(newUnit);
-      await ref.update({ map: data.map });
     }
   },
   mounted() {
     auth.onAuthStateChanged(u => { this.user = u; });
     db.doc("games/demoGame").onSnapshot(snap => {
-      this.map = snap.data().map;
+      if (snap.exists) this.map = snap.data().map;
     });
   }
 });
 app.mount("#app");
 </script>
-
 </body>
 </html>
