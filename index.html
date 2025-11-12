@@ -45,6 +45,16 @@
       padding: 5px;
       font-size: 14px;
     }
+    #log {
+      width: 80%;
+      margin: 10px auto;
+      text-align: left;
+      background: #fff;
+      border: 1px solid #ccc;
+      padding: 10px;
+      max-height: 150px;
+      overflow-y: auto;
+    }
   </style>
 </head>
 <body>
@@ -66,6 +76,7 @@
         </option>
       </select>
     </div>
+
     <div id="board">
       <div
         v-for="id in territoryOrder"
@@ -85,6 +96,13 @@
         </div>
       </div>
     </div>
+
+    <div id="log">
+      <h3>Battle Log</h3>
+      <div v-for="(entry, index) in battleLog" :key="index">
+        • {{ entry }}
+      </div>
+    </div>
   </div>
 </div>
 
@@ -101,7 +119,7 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 
-// 🎨 consistent color per user (hashing email)
+// 🎨 consistent color per user
 function colorForUser(email) {
   const colors = ["#fcba03", "#fc0303", "#fc0313", "#2403fc", "#000000", "#1f8f03"];
   let hash = 0;
@@ -109,6 +127,19 @@ function colorForUser(email) {
     hash = email.charCodeAt(i) + ((hash << 5) - hash);
   }
   return colors[Math.abs(hash) % colors.length];
+}
+
+// ⚔️ combat power thresholds
+const HIT_THRESHOLDS = {
+  infantry: 2,
+  tank: 3,
+  artillery: 3,
+  fighter: 4,
+  bomber: 4
+};
+
+function rollDie() {
+  return Math.floor(Math.random() * 6) + 1;
 }
 
 const app = Vue.createApp({
@@ -119,7 +150,8 @@ const app = Vue.createApp({
       password: '',
       map: {},
       selected: null,
-      territoryOrder: ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"],
+      battleLog: [],
+      territoryOrder: ["A","B","C","D","E","F","G","H","I","J"],
       unitTypes: ["infantry", "tank", "artillery", "fighter", "bomber"],
       selectedUnitType: "infantry"
     };
@@ -133,6 +165,38 @@ const app = Vue.createApp({
       }
     },
 
+    // ⚔️ Battle resolution
+    resolveBattle(attackerUnits, defenderUnits) {
+      const attackerHits = attackerUnits.reduce((hits, u) => {
+        const roll = rollDie();
+        return hits + (roll <= HIT_THRESHOLDS[u.type] ? 1 : 0);
+      }, 0);
+
+      const defenderHits = defenderUnits.reduce((hits, u) => {
+        const roll = rollDie();
+        return hits + (roll <= HIT_THRESHOLDS[u.type] ? 1 : 0);
+      }, 0);
+
+      // casualties
+      const survivingAttackers = attackerUnits.slice();
+      const survivingDefenders = defenderUnits.slice();
+
+      for (let i = 0; i < attackerHits && survivingDefenders.length; i++) {
+        survivingDefenders.splice(Math.floor(Math.random() * survivingDefenders.length), 1);
+      }
+
+      for (let i = 0; i < defenderHits && survivingAttackers.length; i++) {
+        survivingAttackers.splice(Math.floor(Math.random() * survivingAttackers.length), 1);
+      }
+
+      const winner = survivingAttackers.length && !survivingDefenders.length ? "attacker" :
+                     survivingDefenders.length && !survivingAttackers.length ? "defender" : "draw";
+
+      const summary = `Battle: ${attackerUnits.length} attacking vs ${defenderUnits.length} defending → ${winner.toUpperCase()} wins (A:${survivingAttackers.length} D:${survivingDefenders.length})`;
+      this.battleLog.unshift(summary);
+      return { winner, survivingAttackers, survivingDefenders };
+    },
+
     async handleTerritoryClick(id) {
       const ref = db.doc("games/demoGame");
       const snap = await ref.get();
@@ -141,24 +205,36 @@ const app = Vue.createApp({
       if (!data.map[id]) data.map[id] = { units: [] };
 
       if (this.selected) {
-        // MOVE phase
         const fromId = this.selected.from;
         const unit = this.selected.unit;
+        const target = data.map[id];
+
+        const enemyUnits = target.units.filter(u => u.owner !== this.user.email);
+
+        if (enemyUnits.length > 0) {
+          // ⚔️ Battle
+          const result = this.resolveBattle([unit], enemyUnits);
+          if (result.winner === "attacker") {
+            target.units = result.survivingAttackers.map(u => ({...u}));
+          } else if (result.winner === "defender") {
+            target.units = result.survivingDefenders.map(u => ({...u}));
+          } else {
+            target.units = result.survivingAttackers.concat(result.survivingDefenders);
+          }
+        } else {
+          // just move
+          data.map[id].units.push(unit);
+        }
 
         data.map[fromId].units = data.map[fromId].units.filter(u => u.id !== unit.id);
-        data.map[id].units.push(unit);
-
         this.selected = null;
         await ref.update({ map: data.map });
       } else {
-        // SELECT or PLACE phase
         const territory = data.map[id];
         const ownUnit = territory.units.find(u => u.owner === this.user.email);
-
         if (ownUnit) {
           this.selected = { from: id, unit: ownUnit };
         } else {
-          // place chosen type
           const newUnit = {
             id: Date.now(),
             type: this.selectedUnitType,
@@ -176,20 +252,8 @@ const app = Vue.createApp({
       const snap = await ref.get();
       if (!snap.exists) {
         const newMap = {};
-        this.territoryOrder.forEach(id => {
-          newMap[id] = { units: [] };
-        });
+        this.territoryOrder.forEach(id => { newMap[id] = { units: [] }; });
         await ref.set({ map: newMap });
-      } else {
-        const data = snap.data();
-        let changed = false;
-        this.territoryOrder.forEach(id => {
-          if (!data.map[id]) {
-            data.map[id] = { units: [] };
-            changed = true;
-          }
-        });
-        if (changed) await ref.update({ map: data.map });
       }
     }
   },
