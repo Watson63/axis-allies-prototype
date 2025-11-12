@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Axis & Allies Prototype</title>
+  <script src="https://unpkg.com/vue@3.4.27/dist/vue.global.prod.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <style>
+    body { font-family: sans-serif; margin: 0; background: #f2f2f2; }
+    #board { display: grid; grid-template-columns: repeat(5, 100px); gap: 8px; padding: 20px; }
+    .territory { width: 100px; height: 100px; background: white; border: 1px solid #333; display:flex; align-items:center; justify-content:center; cursor:pointer; }
+    .unit { font-size: 12px; padding: 3px 5px; background: #eee; border-radius: 3px; margin-top: 4px; }
+  </style>
+</head>
+<body>
+<div id="app">
+  <div v-if="!user">
+    <h2>Login</h2>
+    <input v-model="email" placeholder="Email"><br>
+    <input v-model="password" type="password" placeholder="Password"><br>
+    <button @click="login">Login / Register</button>
+  </div>
+  <div v-else>
+    <h2>Welcome, {{ user.email }}</h2>
+    <div id="board">
+      <div v-for="(territory, id) in map" :key="id" class="territory" @click="placeUnit(id)">
+        <div>{{ id }}</div>
+        <div v-for="u in territory.units" :key="u.id" class="unit">{{ u.type }} ({{ u.owner }})</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const firebaseConfig = {
+  // 👉 Replace this with your Firebase config (Project Settings → General → Web app)
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+const app = Vue.createApp({
+  data() {
+    return {
+      user: null,
+      email: '',
+      password: '',
+      map: {}
+    }
+  },
+  methods: {
+    async login() {
+      try {
+        await auth.signInWithEmailAndPassword(this.email, this.password);
+      } catch (e) {
+        await auth.createUserWithEmailAndPassword(this.email, this.password);
+      }
+    },
+    async placeUnit(id) {
+      const ref = db.doc("games/demoGame");
+      const snap = await ref.get();
+      const data = snap.data();
+      const territory = data.map[id];
+      territory.units.push({ id: Date.now(), type: "infantry", owner: this.user.email });
+      await ref.update({ map: data.map });
+    }
+  },
+  mounted() {
+    auth.onAuthStateChanged(u => { this.user = u; });
+    db.doc("games/demoGame").onSnapshot(snap => {
+      this.map = snap.data().map;
+    });
+  }
+});
+app.mount("#app");
+</script>
+</body>
+</html>
