@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>Axis & Allies Prototype — Multi-unit Battles</title>
+  <title>Axis & Allies Prototype — Multi-unit Move Selector</title>
 
   <!-- Vue + Firebase (compat) -->
   <script src="https://unpkg.com/vue@3.4.27/dist/vue.global.prod.js"></script>
@@ -31,6 +31,8 @@
     .btn-danger { background:#e74c3c; color:#fff; }
     .btn-muted { background: #ddd; color:#333; }
     .unit-row { display:flex; align-items:center; justify-content:space-between; margin:4px 0; }
+    .stepper { display:flex; gap:6px; align-items:center; margin-top:6px; }
+    .stepper button { padding:4px 8px; }
   </style>
 </head>
 <body>
@@ -53,7 +55,7 @@
     </div>
 
     <div class="small">
-      <div>How-to: Click your source territory to select it, check boxes next to units you want to move (or "Select All"), then click a destination territory to move/attack with those units.</div>
+      <div>How-to: Click your source territory to select it. Use the checkboxes to pick specific units or use the stepper to set a count. Then click a destination to move the selected units (or start a battle if enemies are present).</div>
     </div>
 
     <div id="board">
@@ -79,13 +81,23 @@
             />
             <div class="unit" :style="{ backgroundColor: u.color || '#999' }">{{ u.type }}</div>
           </div>
-          <!-- small owner indicator removed (emails hidden) -->
+          <!-- owner hidden -->
         </div>
 
         <!-- selection controls -->
-        <div v-if="selected && selected.from === id" style="margin-top:6px; display:flex; gap:6px;">
-          <button class="btn btn-muted" @click.stop="selectAllFrom(id)">Select All</button>
-          <button class="btn btn-muted" @click.stop="cancelSelection()">Cancel</button>
+        <div v-if="selected && selected.from === id" style="margin-top:6px; display:flex; flex-direction:column; gap:6px;">
+          <div style="display:flex; gap:6px;">
+            <button class="btn btn-muted" @click.stop="selectAllFrom(id)">Select All</button>
+            <button class="btn btn-muted" @click.stop="cancelSelection()">Cancel</button>
+          </div>
+
+          <!-- stepper to choose count to move -->
+          <div class="stepper">
+            <button class="btn" @click.stop="decrementMoveCount()">-</button>
+            <div class="small">Move count: <strong>{{ selected.moveCount }}</strong></div>
+            <button class="btn" @click.stop="incrementMoveCount(id)">+</button>
+            <button class="btn btn-primary" @click.stop="applyMoveCountSelection(id)">Use Count</button>
+          </div>
         </div>
       </div>
     </div>
@@ -96,7 +108,7 @@
     </div>
   </div>
 
-  <!-- Battle Modal -->
+  <!-- Battle Modal (unchanged from your structure) -->
   <div v-if="activeBattle" class="modal-backdrop">
     <div class="modal">
       <h3>Battle at {{ activeBattle.territory }}</h3>
@@ -220,7 +232,7 @@
         email: '',
         password: '',
         map: {},
-        selected: null, // { from: "A", selectedUnitIds: [] }
+        selected: null, // { from: "A", selectedUnitIds: [], moveCount: 0 }
         territoryOrder: ["A","B","C","D","E","F","G","H","I","J"],
         unitTypes: ["infantry","tank","artillery","fighter","bomber"],
         selectedUnitType: "infantry",
@@ -268,10 +280,32 @@
         const units = (this.map[id] && this.map[id].units) ? this.map[id].units.filter(u => u.owner === this.user.email) : [];
         if (!this.selected || this.selected.from !== id) return;
         this.selected.selectedUnitIds = units.map(u => String(u.id));
+        this.selected.moveCount = units.length;
       },
 
       cancelSelection() {
         this.selected = null;
+      },
+
+      incrementMoveCount(id) {
+        if (!this.selected || this.selected.from !== id) return;
+        const units = (this.map[id] && this.map[id].units) ? this.map[id].units.filter(u => u.owner === this.user.email) : [];
+        if (!this.selected.moveCount) this.selected.moveCount = 0;
+        if (this.selected.moveCount < units.length) this.selected.moveCount++;
+      },
+
+      decrementMoveCount() {
+        if (!this.selected) return;
+        if (!this.selected.moveCount) this.selected.moveCount = 0;
+        if (this.selected.moveCount > 0) this.selected.moveCount--;
+      },
+
+      // Use the current numeric moveCount to populate selectedUnitIds (so move logic can use either)
+      applyMoveCountSelection(id) {
+        if (!this.selected || this.selected.from !== id) return;
+        const units = (this.map[id] && this.map[id].units) ? this.map[id].units.filter(u => u.owner === this.user.email) : [];
+        const count = Math.max(0, Math.min(this.selected.moveCount || 0, units.length));
+        this.selected.selectedUnitIds = units.slice(0, count).map(u => String(u.id));
       },
 
       // clicking a territory
@@ -285,7 +319,8 @@
           // try to select source if it contains our units
           const ownUnits = (data.map[id].units || []).filter(u => u.owner === this.user.email);
           if (ownUnits.length) {
-            this.selected = { from: id, selectedUnitIds: [] };
+            // start selection object with default fields
+            this.selected = { from: id, selectedUnitIds: [], moveCount: 0 };
             return;
           }
           // else place unit
@@ -295,9 +330,8 @@
           return;
         }
 
-        // if already selected
+        // if already selected and click same territory => cancel
         if (this.selected.from === id) {
-          // clicking same territory cancels
           this.selected = null;
           return;
         }
@@ -305,14 +339,21 @@
         // moving from selected.from to id
         const fromId = this.selected.from;
         const fromUnits = data.map[fromId].units || [];
-        // determine which units to move
+
+        // determine which units to move: prefer explicit selectedUnitIds, otherwise use moveCount or default single unit
         let moveIds = (this.selected.selectedUnitIds || []).slice();
+        if (moveIds.length === 0 && this.selected.moveCount && this.selected.moveCount > 0) {
+          // pick first N of player's units
+          const ownUnits = fromUnits.filter(u => u.owner === this.user.email);
+          moveIds = ownUnits.slice(0, this.selected.moveCount).map(u => String(u.id));
+        }
         if (moveIds.length === 0) {
-          // default: move the first own unit
+          // fallback: move first own unit
           const firstOwn = fromUnits.find(u => u.owner === this.user.email);
           if (!firstOwn) { this.selected = null; return; }
           moveIds = [String(firstOwn.id)];
         }
+
         // gather units objects
         const movingUnits = [];
         for (const uid of moveIds) {
@@ -332,7 +373,6 @@
 
         if (enemyUnits.length > 0) {
           // create activeBattle in doc
-          // Note: defender owner assumed single owner for simplicity (take first enemy owner)
           const defenderOwner = enemyUnits[0].owner;
           const battleObj = {
             territory: id,
@@ -362,7 +402,7 @@
         }
       },
 
-      // can current user roll for the given side?
+      // remaining functions below are your battle functions (copied from earlier)
       canRoll(side) {
         if (!this.activeBattle || !this.user) return false;
         if (this.phase === 'awaitingAttackerRoll' && side === 'attacker') return this.user.email === this.activeBattle.attackerEmail;
@@ -370,7 +410,6 @@
         return false;
       },
 
-      // roll dice for a side
       async rollDice(side) {
         if (!this.activeBattle) return;
         const ref = db.doc("games/demoGame");
@@ -381,18 +420,15 @@
 
         if (side === 'attacker' && b.phase === 'awaitingAttackerRoll') {
           const rolls = b.attackerUnits.map(u => rollDie());
-          // compute hits using ATTACK_THRESHOLDS (infantry hits only on 1)
           let hits = 0;
           for (let i=0;i<rolls.length;i++){
             const t = b.attackerUnits[i].type;
             const threshold = ATTACK_THRESHOLDS[t] || 0;
-            // attacker infantry hits only on ==1 (threshold=1)
             if (rolls[i] <= threshold) hits++;
           }
           b.attackerRolls = rolls;
           b.lastAttackerHits = hits;
           b.log.push(`Round ${b.round}: Attacker rolled [${rolls.join(', ')}] -> ${hits} hit(s)`);
-          // next: defender chooses casualties (if hits>0) or proceed to defender's roll
           b.phase = (hits > 0) ? 'chooseDefenderCasualties' : 'awaitingDefenderRoll';
         } else if (side === 'defender' && b.phase === 'awaitingDefenderRoll') {
           const rolls = b.defenderUnits.map(u => rollDie());
@@ -412,7 +448,6 @@
         await ref.update({ activeBattle: b });
       },
 
-      // defender confirms casualties chosen (equal to lastAttackerHits)
       async applyDefenderCasualties() {
         if (!this.activeBattle) return;
         const ref = db.doc("games/demoGame");
@@ -424,12 +459,10 @@
         const hits = b.lastAttackerHits || 0;
         if (this.selectedCasualtiesDefender.length !== hits) { alert(`Select exactly ${hits} unit(s).`); return; }
 
-        // remove selected units from defenderUnits
         b.defenderUnits = b.defenderUnits.filter(u => !this.selectedCasualtiesDefender.includes(String(u.id)));
         b.log.push(`Defender removed ${hits} unit(s): ${this.selectedCasualtiesDefender.join(', ')}`);
         this.selectedCasualtiesDefender = [];
 
-        // check defender eliminated
         if (b.defenderUnits.length === 0) {
           b.winner = 'attacker';
           b.phase = 'resolved';
@@ -438,12 +471,10 @@
           return;
         }
 
-        // next: defender rolls (defender attacks)
         b.phase = 'awaitingDefenderRoll';
         await ref.update({ activeBattle: b });
       },
 
-      // attacker confirms casualties equal to lastDefenderHits
       async applyAttackerCasualties() {
         if (!this.activeBattle) return;
         const ref = db.doc("games/demoGame");
@@ -459,7 +490,6 @@
         b.log.push(`Attacker removed ${hits} unit(s): ${this.selectedCasualtiesAttacker.join(', ')}`);
         this.selectedCasualtiesAttacker = [];
 
-        // check attacker eliminated
         if (b.attackerUnits.length === 0) {
           b.winner = 'defender';
           b.phase = 'resolved';
@@ -468,7 +498,6 @@
           return;
         }
 
-        // next round: reset rolls and increment round, back to attacker roll
         b.round = (b.round || 1) + 1;
         b.attackerRolls = [];
         b.defenderRolls = [];
@@ -478,7 +507,6 @@
         await ref.update({ activeBattle: b });
       },
 
-      // finish battle and apply survivors to map
       async finishBattle() {
         const ref = db.doc("games/demoGame");
         const snap = await ref.get();
@@ -503,17 +531,14 @@
           activeBattle: firebase.firestore.FieldValue.delete()
         });
 
-        // update local summary
         this.battleSummaryLog.unshift(`Battle at ${b.territory}: ${b.winner}`);
       },
 
-      // abort for testing
       async abortBattle() {
         if (!this.canAbort) { alert('Only participants can abort'); return; }
         const ref = db.doc("games/demoGame");
         const snap = await ref.get();
         const data = snap.data();
-        // restore defender units to map (defenderUnits were unchanged)
         if (data.activeBattle) {
           const b = data.activeBattle;
           data.map[b.territory].units = (b.defenderUnits || []).concat(b.attackerUnits || []);
@@ -534,7 +559,6 @@
         this.map = data.map || {};
         this.activeBattle = data.activeBattle || null;
 
-        // normalize string ids for checkboxes
         if (this.activeBattle) {
           this.activeBattle.attackerUnits = (this.activeBattle.attackerUnits || []).map(u => ({...u, id: String(u.id)}));
           this.activeBattle.defenderUnits = (this.activeBattle.defenderUnits || []).map(u => ({...u, id: String(u.id)}));
@@ -544,6 +568,9 @@
   });
 
   app.mount('#app');
+
+  // helpers
+  function rollDie() { return Math.floor(Math.random()*6)+1; }
 </script>
 </body>
 </html>
