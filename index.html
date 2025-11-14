@@ -380,11 +380,17 @@
 
         // if destination has enemies -> start interactive battle
         const destUnits = data.map[id].units || [];
-        const enemyUnits = destUnits.filter(u => u.owner !== this.user.email);
+        const enemyUnits = destUnits.filter(u => u.owner && u.owner !== this.user.email);
 
         if (enemyUnits.length > 0) {
-          // create activeBattle in doc
-          const defenderOwner = enemyUnits[0].owner;
+            const defenderOwner = enemyUnits[0].owner || "unknown-owner";
+        
+            // Prevent Firestore crash:
+            if (!defenderOwner) {
+                console.error("ERROR: defenderOwner undefined. Units:", enemyUnits);
+                alert("Battle failed: Defender has an invalid owner. Fix unit data in Firestore.");
+                return;
+            }
           const battleObj = {
             territory: id,
             attackerEmail: this.user.email,
