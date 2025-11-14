@@ -468,7 +468,7 @@
     await ref.update({ activeBattle: b });
     return;
 
-        } else if (side === 'defender' && b.phase === 'awaitingDefenderRoll') {
+        }  if (side === 'defender' && b.phase === 'awaitingDefenderRoll') {
           const rolls = b.defenderUnits.map(u => rollDie());
           let hits = 0;
           for (let i=0;i<rolls.length;i++){
