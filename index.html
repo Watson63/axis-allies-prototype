@@ -134,9 +134,7 @@
               <div v-for="(d,i) in activeBattle.attackerRolls || []" :key="'a'+i" class="die">{{ d }}</div>
             </div>
 
-            <div style="margin-top:8px;">
-              <button class="btn btn-primary" :disabled="!canRoll('attacker')" @click="rollDice('attacker')">Roll Dice (Attacker)</button>
-            </div>
+            
           </div>
 
           <!-- Defender -->
