@@ -168,15 +168,15 @@
           <div class="small"><strong>Round:</strong> {{ activeBattle.round }}</div>
           <div class="small"><strong>Last Hits — A:</strong> {{ activeBattle.lastAttackerHits || 0 }} — <strong>D:</strong> {{ activeBattle.lastDefenderHits || 0 }}</div>
 
-          <div v-if="phase === 'chooseDefenderCasualties'" style="margin-top:8px;">
-            <div class="small">Defender: select <strong>{{ activeBattle.lastAttackerHits }}</strong> unit(s) to remove</div>
-            <button class="btn btn-primary" :disabled="selectedCasualtiesDefender.length !== activeBattle.lastAttackerHits" @click="applyDefenderCasualties()">Confirm</button>
+          <!-- Auto-casualty notifications -->
+          <div v-if="phase === 'chooseDefenderCasualties'" class="small">
+            Assigning defender casualties automatically...
+          </div>
+          
+          <div v-if="phase === 'chooseAttackerCasualties'" class="small">
+            Assigning attacker casualties automatically...
           </div>
 
-          <div v-if="phase === 'chooseAttackerCasualties'" style="margin-top:8px;">
-            <div class="small">Attacker: select <strong>{{ activeBattle.lastDefenderHits }}</strong> unit(s) to remove</div>
-            <button class="btn btn-primary" :disabled="selectedCasualtiesAttacker.length !== activeBattle.lastDefenderHits" @click="applyAttackerCasualties()">Confirm</button>
-          </div>
 
           <div v-if="phase === 'resolved'" style="margin-top:10px;">
             <div class="small"><strong>Battle finished — winner:</strong> {{ activeBattle.winner }}</div>
@@ -440,7 +440,23 @@
           b.attackerRolls = rolls;
           b.lastAttackerHits = hits;
           b.log.push(`Round ${b.round}: Attacker rolled [${rolls.join(', ')}] -> ${hits} hit(s)`);
-          b.phase = (hits > 0) ? 'chooseDefenderCasualties' : 'awaitingDefenderRoll';
+          if (hits > 0) {
+    // auto-assign casualties immediately
+    const casualties = autoAssignCasualties(b.defenderUnits, hits);
+    b.defenderUnits = b.defenderUnits.filter(u => !casualties.includes(String(u.id)));
+    b.log.push(`Defender automatically lost ${hits} unit(s): ${casualties.join(", ")}`);
+
+    if (b.defenderUnits.length === 0) {
+        b.winner = "attacker";
+        b.phase = "resolved";
+        b.log.push("Attacker eliminated all defenders!");
+    } else {
+        b.phase = "awaitingDefenderRoll";
+    }
+} else {
+    b.phase = "awaitingDefenderRoll";
+}
+
         } else if (side === 'defender' && b.phase === 'awaitingDefenderRoll') {
           const rolls = b.defenderUnits.map(u => rollDie());
           let hits = 0;
