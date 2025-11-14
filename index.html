@@ -502,73 +502,68 @@
       },
 
       async applyDefenderCasualties() {
-        if (!this.activeBattle) return;
-        const ref = db.doc("games/demoGame");
-        const snap = await ref.get();
-        const data = snap.data();
-        const b = data.activeBattle;
-        if (!b) return;
-      
-        const hits = b.lastAttackerHits || 0;
-      
-        const casualties = autoAssignCasualties(b.defenderUnits, hits);
-      
-        b.defenderUnits = b.defenderUnits.filter(
-          u => !casualties.includes(String(u.id))
-        );
-      
-        b.log.push(
-          `Defender automatically lost ${hits} unit(s): ${casualties.join(", ")}`
-        );
-      
-        if (b.defenderUnits.length === 0) {
-          b.winner = "attacker";
-          b.phase = "resolved";
-          b.log.push("Attacker eliminated all defenders!");
-          await ref.update({ activeBattle: b });
-          return;
-        }
-      
-        b.phase = "awaitingDefenderRoll";
+    if (!this.activeBattle) return;
+    const ref = db.doc("games/demoGame");
+    const snap = await ref.get();
+    const data = snap.data();
+    const b = data.activeBattle;
+    if (!b) return;
+
+    const hits = b.lastAttackerHits || 0;
+    const casualties = autoAssignCasualties(b.defenderUnits, hits);
+
+    b.defenderUnits = b.defenderUnits.filter(
+        u => !casualties.includes(String(u.id))
+    );
+
+    b.log.push(
+        `Defender automatically lost ${hits} unit(s): ${casualties.join(", ")}`
+    );
+
+    if (b.defenderUnits.length === 0) {
+        b.winner = "attacker";
+        b.phase = "resolved";
+        b.log.push("Attacker eliminated all defenders!");
         await ref.update({ activeBattle: b });
-      },
-      
-      
-      async applyAttackerCasualties() {
-        if (!this.activeBattle) return;
-        const ref = db.doc("games/demoGame");
-        const snap = await ref.get();
-        const data = snap.data();
-        const b = data.activeBattle;
-        if (!b) return;
-      
-        const hits = b.lastDefenderHits || 0;
-      
-        const casualties = autoAssignCasualties(b.attackerUnits, hits);
-      
-        b.attackerUnits = b.attackerUnits.filter(
-          u => !casualties.includes(String(u.id))
-        );
-      
-        b.log.push(
-          `Attacker automatically lost ${hits} unit(s): ${casualties.join(", ")}`
-        );
-      
-        if (b.attackerUnits.length === 0) {
-          b.winner = "defender";
-          b.phase = "resolved";
-          b.log.push("Defender eliminated all attackers!");
-          await ref.update({ activeBattle: b });
-          return;
-        }
-      
-        b.round = (b.round || 1) + 1;
-        b.attackerRolls = [];
-        b.defenderRolls = [];
-        b.phase = "awaitingAttackerRoll";
-      
+        return;
+    }
+
+    // continue to defender rolling
+    b.phase = "awaitingDefenderRoll";
+    await ref.update({ activeBattle: b });
+},
+
+async applyAttackerCasualties() {
+    if (!this.activeBattle) return;
+    const ref = db.doc("games/demoGame");
+    const snap = await ref.get();
+    const data = snap.data();
+    const b = data.activeBattle;
+    if (!b) return;
+
+    const hits = b.lastDefenderHits || 0;
+    const casualties = autoAssignCasualties(b.attackerUnits, hits);
+
+    b.attackerUnits = b.attackerUnits.filter(
+        u => !casualties.includes(String(u.id))
+    );
+
+    b.log.push(
+        `Attacker automatically lost ${hits} unit(s): ${casualties.join(", ")}`
+    );
+
+    if (b.attackerUnits.length === 0) {
+        b.winner = "defender";
+        b.phase = "resolved";
+        b.log.push("Defender eliminated all attackers!");
         await ref.update({ activeBattle: b });
-      },
+        return;
+    }
+
+    // continue to next round attacker roll
+    b.phase = "awaitingAttackerRoll";
+    await ref.update({ activeBattle: b });
+},
 
       async finishBattle() {
         const ref = db.doc("games/demoGame");
