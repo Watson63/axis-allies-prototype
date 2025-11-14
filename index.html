@@ -2,37 +2,30 @@
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>Axis & Allies Prototype — Multi-unit Move Selector</title>
+  <title>Axis & Allies Prototype — Simultaneous Fire</title>
 
-  <!-- Vue + Firebase (compat) -->
   <script src="https://unpkg.com/vue@3.4.27/dist/vue.global.prod.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 
   <style>
-    body { font-family: sans-serif; margin: 0; background: #f2f2f2; text-align: center; }
-    #board { display: grid; grid-template-columns: repeat(5, 100px); gap: 8px; padding: 20px; justify-content: center; }
-    .territory { width: 100px; height: 100px; background: white; border: 2px solid #333; display:flex; flex-direction:column; align-items:center; justify-content:flex-start; cursor:pointer; transition: border 0.2s; padding:6px; box-sizing:border-box;}
-    .territory.selected { border: 3px solid #007bff; box-shadow: 0 0 10px rgba(0,0,255,0.3); }
-    .unit { font-size: 11px; padding: 4px 6px; border-radius: 4px; margin: 3px 0; color: white; font-weight: bold; display:inline-block; }
-    .small { font-size:12px; color:#444; }
-    .controls { margin: 8px 0; }
-    .checkbox { transform: scale(1.05); margin-right:6px; }
-    /* Modal */
-    .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; z-index:1000; }
-    .modal { width: 760px; max-width:95%; background:#fff; border-radius:8px; padding:16px; box-shadow:0 8px 30px rgba(0,0,0,0.3); text-align:left; }
-    .battle-row { display:flex; gap:12px; align-items:flex-start; }
-    .side { flex:1; border:1px solid #ddd; padding:8px; border-radius:6px; min-height:120px; max-height:320px; overflow:auto; }
-    .dice { display:flex; gap:6px; margin:6px 0; flex-wrap:wrap;}
-    .die { width:28px; height:28px; display:flex; align-items:center; justify-content:center; border-radius:4px; background:#eee; font-weight:bold; }
-    .btn { padding:8px 10px; border-radius:6px; border:none; cursor:pointer; }
-    .btn-primary { background:#007bff; color:#fff; }
-    .btn-danger { background:#e74c3c; color:#fff; }
-    .btn-muted { background: #ddd; color:#333; }
-    .unit-row { display:flex; align-items:center; justify-content:space-between; margin:4px 0; }
-    .stepper { display:flex; gap:6px; align-items:center; margin-top:6px; }
-    .stepper button { padding:4px 8px; }
+    body { font-family: sans-serif; background: #f2f2f2; text-align: center; margin:0;}
+    #board { display:grid; grid-template-columns:repeat(5,100px); gap:8px; padding:20px; justify-content:center;}
+    .territory {width:100px; height:100px; background:white; border:2px solid #333; border-radius:4px; display:flex; flex-direction:column; align-items:center; justify-content:flex-start; cursor:pointer; transition:border 0.2s; padding:6px; box-sizing:border-box;}
+    .territory.selected {border:3px solid #007bff; box-shadow:0 0 10px rgba(0,0,255,0.3);}
+    .unit {font-size:11px; padding:4px 6px; border-radius:4px; margin:3px 0; color:white; font-weight:bold; display:inline-block;}
+    .small {font-size:12px; color:#444;}
+    .btn {padding:6px 10px; border:none; border-radius:5px; cursor:pointer;}
+    .btn-primary {background:#007bff; color:white;}
+    .btn-danger {background:#e74c3c; color:white;}
+    .btn-muted {background:#ddd; color:#333;}
+    .modal-backdrop {position:fixed; inset:0; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center;}
+    .modal {width:750px; max-width:95%; background:white; border-radius:8px; padding:16px; box-shadow:0 8px 30px rgba(0,0,0,0.3);}
+    .battle-row {display:flex; gap:12px;}
+    .side {flex:1; border:1px solid #ddd; padding:8px; border-radius:6px;}
+    .dice {display:flex; gap:6px; flex-wrap:wrap;}
+    .die {width:28px; height:28px; display:flex; align-items:center; justify-content:center; background:#eee; border-radius:4px;}
   </style>
 </head>
 <body>
@@ -46,151 +39,69 @@
 
   <div v-else>
     <h2>Welcome, {{ user.email }}</h2>
-
-    <div class="controls">
-      <label class="small"><strong>Select Unit Type to Place:</strong></label><br>
-      <select v-model="selectedUnitType">
-        <option v-for="type in unitTypes" :key="type" :value="type">{{ type }}</option>
-      </select>
-    </div>
-
-    <div class="small">
-      <div>How-to: Click your source territory to select it. Use the checkboxes to pick specific units or use the stepper to set a count. Then click a destination to move the selected units (or start a battle if enemies are present).</div>
-    </div>
-
     <div id="board">
-      <div
-        v-for="id in territoryOrder"
-        :key="id"
-        class="territory"
-        :class="{ selected: selected && selected.from === id }"
-        @click="handleTerritoryClick(id)"
-      >
+      <div v-for="id in territoryOrder" :key="id" class="territory"
+           :class="{selected:selected && selected.from===id}"
+           @click="handleTerritoryClick(id)">
         <strong>{{ id }}</strong>
-
-        <!-- list units -->
-        <div v-for="u in map[id]?.units || []" :key="u.id" style="width:100%; display:flex; justify-content:space-between; align-items:center; margin-top:6px;">
-          <div style="display:flex; gap:6px; align-items:center;">
-            <!-- show checkbox for units only if this territory is selected and it's your unit -->
-            <input
-              v-if="selected && selected.from === id && u.owner === user.email"
-              type="checkbox"
-              class="checkbox"
-              :value="String(u.id)"
-              v-model="selected.selectedUnitIds"
-            />
-            <div class="unit" :style="{ backgroundColor: u.color || '#999' }">{{ u.type }}</div>
-          </div>
-          <!-- owner hidden -->
-        </div>
-
-        <!-- selection controls -->
-        <div v-if="selected && selected.from === id" style="margin-top:6px; display:flex; flex-direction:column; gap:6px;">
-          <div style="display:flex; gap:6px;">
-            <button class="btn btn-muted" @click.stop="selectAllFrom(id)">Select All</button>
-            <button class="btn btn-muted" @click.stop="cancelSelection()">Cancel</button>
-          </div>
-
-          <!-- stepper to choose count to move -->
-          <div class="stepper">
-            <button class="btn" @click.stop="decrementMoveCount()">-</button>
-            <div class="small">Move count: <strong>{{ selected.moveCount }}</strong></div>
-            <button class="btn" @click.stop="incrementMoveCount(id)">+</button>
-            <button class="btn btn-primary" @click.stop="applyMoveCountSelection(id)">Use Count</button>
+        <div v-for="u in map[id]?.units || []" :key="u.id" style="width:100%;display:flex;justify-content:space-between;align-items:center;">
+          <div style="display:flex;align-items:center;gap:6px;">
+            <input v-if="selected && selected.from===id && u.owner===user.email"
+                   type="checkbox" class="checkbox" :value="String(u.id)" v-model="selected.selectedUnitIds"/>
+            <div class="unit" :style="{backgroundColor:u.color}">{{u.type}}</div>
           </div>
         </div>
       </div>
     </div>
 
-    <div id="log" style="width:80%; margin:14px auto;">
-      <h4 class="small">Battle Summary Log</h4>
-      <div v-for="(e,i) in battleSummaryLog" :key="i" class="small">• {{ e }}</div>
-    </div>
-  </div>
+    <div v-if="activeBattle" class="modal-backdrop">
+      <div class="modal">
+        <h3>Battle at {{activeBattle.territory}}</h3>
+        <p>Round {{activeBattle.round}}</p>
 
-  <!-- Battle Modal (unchanged from your structure) -->
-  <div v-if="activeBattle" class="modal-backdrop">
-    <div class="modal">
-      <h3>Battle at {{ activeBattle.territory }}</h3>
-      <div class="small">Attacker: {{ activeBattle.attackerEmail }} — Defender: {{ activeBattle.defenderEmail }}</div>
-
-      <div style="margin-top:8px">
         <div class="battle-row">
-          <!-- Attacker -->
           <div class="side">
-            <h4>Attacker Units</h4>
-            <div v-for="u in activeBattle.attackerUnits" :key="u.id" class="unit-row">
-              <div style="display:flex; align-items:center; gap:8px">
-                <div class="unit" :style="{ backgroundColor: u.color }">{{ u.type }}</div>
-                <div class="small">{{ u.id }}</div>
-              </div>
-              <div v-if="phase === 'chooseAttackerCasualties'">
-                <input type="checkbox" class="checkbox" :value="String(u.id)" v-model="selectedCasualtiesAttacker" />
-              </div>
+            <h4>Attacker</h4>
+            <div v-for="u in activeBattle.attackerUnits" :key="u.id">
+              <div class="unit" :style="{backgroundColor:u.color}">{{u.type}}</div>
+              <span v-if="phase==='chooseAttackerCasualties'">
+                <input type="checkbox" :value="String(u.id)" v-model="selectedCasualtiesAttacker">
+              </span>
             </div>
-
-            <div class="small" style="margin-top:8px;">Attacker Rolls:</div>
-            <div class="dice">
-              <div v-for="(d,i) in activeBattle.attackerRolls || []" :key="'a'+i" class="die">{{ d }}</div>
-            </div>
-
-            <div style="margin-top:8px;">
-              <button class="btn btn-primary" :disabled="!canRoll('attacker')" @click="rollDice('attacker')">Roll Dice (Attacker)</button>
-            </div>
+            <button class="btn btn-primary" :disabled="!canRoll('attacker')" @click="rollDice('attacker')">Roll Attacker</button>
+            <div class="dice"><div v-for="(d,i) in activeBattle.attackerRolls" :key="'a'+i" class="die">{{d}}</div></div>
           </div>
 
-          <!-- Defender -->
           <div class="side">
-            <h4>Defender Units</h4>
-            <div v-for="u in activeBattle.defenderUnits" :key="u.id" class="unit-row">
-              <div style="display:flex; align-items:center; gap:8px">
-                <div class="unit" :style="{ backgroundColor: u.color }">{{ u.type }}</div>
-                <div class="small">{{ u.id }}</div>
-              </div>
-              <div v-if="phase === 'chooseDefenderCasualties'">
-                <input type="checkbox" class="checkbox" :value="String(u.id)" v-model="selectedCasualtiesDefender" />
-              </div>
+            <h4>Defender</h4>
+            <div v-for="u in activeBattle.defenderUnits" :key="u.id">
+              <div class="unit" :style="{backgroundColor:u.color}">{{u.type}}</div>
+              <span v-if="phase==='chooseDefenderCasualties'">
+                <input type="checkbox" :value="String(u.id)" v-model="selectedCasualtiesDefender">
+              </span>
             </div>
-
-            <div class="small" style="margin-top:8px;">Defender Rolls:</div>
-            <div class="dice">
-              <div v-for="(d,i) in activeBattle.defenderRolls || []" :key="'d'+i" class="die">{{ d }}</div>
-            </div>
-
-            <div style="margin-top:8px;">
-              <button class="btn btn-primary" :disabled="!canRoll('defender')" @click="rollDice('defender')">Roll Dice (Defender)</button>
-            </div>
+            <button class="btn btn-primary" :disabled="!canRoll('defender')" @click="rollDice('defender')">Roll Defender</button>
+            <div class="dice"><div v-for="(d,i) in activeBattle.defenderRolls" :key="'d'+i" class="die">{{d}}</div></div>
           </div>
         </div>
 
-        <!-- round info & casualty UI -->
-        <div style="margin-top:12px;">
-          <div class="small"><strong>Round:</strong> {{ activeBattle.round }}</div>
-          <div class="small"><strong>Last Hits — A:</strong> {{ activeBattle.lastAttackerHits || 0 }} — <strong>D:</strong> {{ activeBattle.lastDefenderHits || 0 }}</div>
-
-          <div v-if="phase === 'chooseDefenderCasualties'" style="margin-top:8px;">
-            <div class="small">Defender: select <strong>{{ activeBattle.lastAttackerHits }}</strong> unit(s) to remove</div>
-            <button class="btn btn-primary" :disabled="selectedCasualtiesDefender.length !== activeBattle.lastAttackerHits" @click="applyDefenderCasualties()">Confirm</button>
+        <div style="margin-top:10px;">
+          <div v-if="phase==='chooseDefenderCasualties'">
+            Defender: select {{activeBattle.lastAttackerHits}} unit(s) to remove
+            <button class="btn btn-primary"
+                    :disabled="selectedCasualtiesDefender.length!==activeBattle.lastAttackerHits"
+                    @click="applyDefenderCasualties">Confirm</button>
           </div>
-
-          <div v-if="phase === 'chooseAttackerCasualties'" style="margin-top:8px;">
-            <div class="small">Attacker: select <strong>{{ activeBattle.lastDefenderHits }}</strong> unit(s) to remove</div>
-            <button class="btn btn-primary" :disabled="selectedCasualtiesAttacker.length !== activeBattle.lastDefenderHits" @click="applyAttackerCasualties()">Confirm</button>
+          <div v-if="phase==='chooseAttackerCasualties'">
+            Attacker: select {{activeBattle.lastDefenderHits}} unit(s) to remove
+            <button class="btn btn-primary"
+                    :disabled="selectedCasualtiesAttacker.length!==activeBattle.lastDefenderHits"
+                    @click="applyAttackerCasualties">Confirm</button>
           </div>
-
-          <div v-if="phase === 'resolved'" style="margin-top:10px;">
-            <div class="small"><strong>Battle finished — winner:</strong> {{ activeBattle.winner }}</div>
-            <button class="btn btn-primary" @click="finishBattle()">Close & Apply Results</button>
+          <div v-if="phase==='resolved'">
+            <p>Winner: {{activeBattle.winner}}</p>
+            <button class="btn btn-primary" @click="finishBattle">Close</button>
           </div>
-
-          <div style="margin-top:8px;">
-            <button class="btn btn-danger" @click="abortBattle()" v-if="canAbort">Abort Battle</button>
-          </div>
-        </div>
-
-        <div style="margin-top:8px;">
-          <h4 class="small">Battle Log</h4>
-          <div v-for="(l,i) in activeBattle.log || []" :key="i" class="small">• {{ l }}</div>
         </div>
       </div>
     </div>
@@ -198,379 +109,141 @@
 </div>
 
 <script>
-  const firebaseConfig = {
-    apiKey: "AIzaSyAL4FGAaOfKPJfEkYGBUZN7dW5_XNfmoww",
-    authDomain: "axisandallies-prototype.firebaseapp.com",
-    projectId: "axisandallies-prototype",
-    storageBucket: "axisandallies-prototype.firebasestorage.app",
-    messagingSenderId: "663070828047",
-    appId: "1:663070828047:web:9f37c0fc5541ff86d6657a"
-  };
-  firebase.initializeApp(firebaseConfig);
-  const auth = firebase.auth();
-  const db = firebase.firestore();
+const firebaseConfig = {
+  apiKey: "AIzaSyAL4FGAaOfKPJfEkYGBUZN7dW5_XNfmoww",
+  authDomain: "axisandallies-prototype.firebaseapp.com",
+  projectId: "axisandallies-prototype",
+  storageBucket: "axisandallies-prototype.firebasestorage.app",
+  messagingSenderId: "663070828047",
+  appId: "1:663070828047:web:9f37c0fc5541ff86d6657a"
+};
+firebase.initializeApp(firebaseConfig);
+const auth=firebase.auth();
+const db=firebase.firestore();
 
-  // color function unchanged
-  function colorForUser(email) {
-    const colors = ["#fcba03", "#fc0303", "#fc0313", "#2403fc", "#000000", "#1f8f03"];
-    let hash = 0;
-    for (let i = 0; i < email.length; i++) hash = email.charCodeAt(i) + ((hash << 5) - hash);
-    return colors[Math.abs(hash) % colors.length];
-  }
+function rollDie(){return Math.floor(Math.random()*6)+1;}
+const ATTACK_THRESHOLDS={infantry:1,tank:3,artillery:3,fighter:4,bomber:4};
+const DEFEND_THRESHOLDS={infantry:2,tank:3,artillery:3,fighter:4,bomber:4};
+function colorForUser(email){
+  const colors=["#fcba03","#fc0303","#2403fc","#000","#1f8f03"];
+  let hash=0;for(let i=0;i<email.length;i++)hash=email.charCodeAt(i)+((hash<<5)-hash);
+  return colors[Math.abs(hash)%colors.length];
+}
 
-  // roll helper
-  function rollDie() { return Math.floor(Math.random()*6)+1; }
-
-  // thresholds: attacker vs defender per unit type
-  const ATTACK_THRESHOLDS = { infantry: 1, tank: 3, artillery: 3, fighter: 4, bomber: 4 };
-  const DEFEND_THRESHOLDS = { infantry: 2, tank: 3, artillery: 3, fighter: 4, bomber: 4 };
-
-  const app = Vue.createApp({
-    data() {
-      return {
-        user: null,
-        email: '',
-        password: '',
-        map: {},
-        selected: null, // { from: "A", selectedUnitIds: [], moveCount: 0 }
-        territoryOrder: ["A","B","C","D","E","F","G","H","I","J"],
-        unitTypes: ["infantry","tank","artillery","fighter","bomber"],
-        selectedUnitType: "infantry",
-        activeBattle: null,
-        battleSummaryLog: [],
-        selectedCasualtiesDefender: [],
-        selectedCasualtiesAttacker: []
-      };
+const app=Vue.createApp({
+  data(){return{
+    user:null,email:'',password:'',
+    map:{},territoryOrder:["A","B","C","D","E","F","G","H","I","J"],
+    selected:null,activeBattle:null,
+    selectedCasualtiesDefender:[],selectedCasualtiesAttacker:[]
+  }},
+  computed:{phase(){return this.activeBattle?this.activeBattle.phase:null;}},
+  methods:{
+    async login(){try{await auth.signInWithEmailAndPassword(this.email,this.password);}
+      catch(e){await auth.createUserWithEmailAndPassword(this.email,this.password);}
     },
-    computed: {
-      phase() {
-        return this.activeBattle ? this.activeBattle.phase : null;
-      },
-      canAbort() {
-        if (!this.activeBattle || !this.user) return false;
-        return this.user.email === this.activeBattle.attackerEmail || this.user.email === this.activeBattle.defenderEmail;
+    async ensureMapInitialized(){
+      const ref=db.doc("games/demoGame");
+      const snap=await ref.get();
+      if(!snap.exists){
+        const m={};this.territoryOrder.forEach(t=>m[t]={units:[]});
+        await ref.set({map:m});
       }
     },
-    methods: {
-      async login() {
-        try { await auth.signInWithEmailAndPassword(this.email, this.password); }
-        catch (e) { await auth.createUserWithEmailAndPassword(this.email, this.password); }
-      },
-
-      // init map
-      async ensureMapInitialized() {
-        const ref = db.doc("games/demoGame");
-        const snap = await ref.get();
-        if (!snap.exists) {
-          const newMap = {};
-          this.territoryOrder.forEach(id => newMap[id] = { units: [] });
-          await ref.set({ map: newMap });
-        } else {
-          const data = snap.data();
-          let changed = false;
-          this.territoryOrder.forEach(id => {
-            if (!data.map[id]) { data.map[id] = { units: [] }; changed = true; }
-          });
-          if (changed) await ref.update({ map: data.map });
-        }
-      },
-
-      // select all units from a territory (UI convenience)
-      selectAllFrom(id) {
-        const units = (this.map[id] && this.map[id].units) ? this.map[id].units.filter(u => u.owner === this.user.email) : [];
-        if (!this.selected || this.selected.from !== id) return;
-        this.selected.selectedUnitIds = units.map(u => String(u.id));
-        this.selected.moveCount = units.length;
-      },
-
-      cancelSelection() {
-        this.selected = null;
-      },
-
-      incrementMoveCount(id) {
-        if (!this.selected || this.selected.from !== id) return;
-        const units = (this.map[id] && this.map[id].units) ? this.map[id].units.filter(u => u.owner === this.user.email) : [];
-        if (!this.selected.moveCount) this.selected.moveCount = 0;
-        if (this.selected.moveCount < units.length) this.selected.moveCount++;
-      },
-
-      decrementMoveCount() {
-        if (!this.selected) return;
-        if (!this.selected.moveCount) this.selected.moveCount = 0;
-        if (this.selected.moveCount > 0) this.selected.moveCount--;
-      },
-
-      // Use the current numeric moveCount to populate selectedUnitIds (so move logic can use either)
-      applyMoveCountSelection(id) {
-        if (!this.selected || this.selected.from !== id) return;
-        const units = (this.map[id] && this.map[id].units) ? this.map[id].units.filter(u => u.owner === this.user.email) : [];
-        const count = Math.max(0, Math.min(this.selected.moveCount || 0, units.length));
-        this.selected.selectedUnitIds = units.slice(0, count).map(u => String(u.id));
-      },
-
-      // clicking a territory
-      async handleTerritoryClick(id) {
-        const ref = db.doc("games/demoGame");
-        const snap = await ref.get();
-        const data = snap.data() || { map: {} };
-        if (!data.map[id]) data.map[id] = { units: [] };
-
-        if (!this.selected) {
-          // try to select source if it contains our units
-          const ownUnits = (data.map[id].units || []).filter(u => u.owner === this.user.email);
-          if (ownUnits.length) {
-            // start selection object with default fields
-            this.selected = { from: id, selectedUnitIds: [], moveCount: 0 };
-            return;
-          }
-          // else place unit
-          const newUnit = { id: Date.now(), type: this.selectedUnitType, owner: this.user.email, color: colorForUser(this.user.email) };
-          data.map[id].units.push(newUnit);
-          await ref.update({ map: data.map });
-          return;
-        }
-
-        // if already selected and click same territory => cancel
-        if (this.selected.from === id) {
-          this.selected = null;
-          return;
-        }
-
-        // moving from selected.from to id
-        const fromId = this.selected.from;
-        const fromUnits = data.map[fromId].units || [];
-
-        // determine which units to move: prefer explicit selectedUnitIds, otherwise use moveCount or default single unit
-        let moveIds = (this.selected.selectedUnitIds || []).slice();
-        if (moveIds.length === 0 && this.selected.moveCount && this.selected.moveCount > 0) {
-          // pick first N of player's units
-          const ownUnits = fromUnits.filter(u => u.owner === this.user.email);
-          moveIds = ownUnits.slice(0, this.selected.moveCount).map(u => String(u.id));
-        }
-        if (moveIds.length === 0) {
-          // fallback: move first own unit
-          const firstOwn = fromUnits.find(u => u.owner === this.user.email);
-          if (!firstOwn) { this.selected = null; return; }
-          moveIds = [String(firstOwn.id)];
-        }
-
-        // gather units objects
-        const movingUnits = [];
-        for (const uid of moveIds) {
-          const idx = fromUnits.findIndex(u => String(u.id) === String(uid) && u.owner === this.user.email);
-          if (idx !== -1) {
-            movingUnits.push(fromUnits[idx]);
-          }
-        }
-        if (movingUnits.length === 0) { this.selected = null; return; }
-
-        // remove moving units from origin
-        data.map[fromId].units = fromUnits.filter(u => !moveIds.includes(String(u.id)));
-
-        // if destination has enemies -> start interactive battle
-        const destUnits = data.map[id].units || [];
-        const enemyUnits = destUnits.filter(u => u.owner !== this.user.email);
-
-        if (enemyUnits.length > 0) {
-          // create activeBattle in doc
-          const defenderOwner = enemyUnits[0].owner;
-          const battleObj = {
-            territory: id,
-            attackerEmail: this.user.email,
-            defenderEmail: defenderOwner,
-            attackerUnits: movingUnits.map(u => ({...u, id: String(u.id)})),
-            defenderUnits: destUnits.map(u => ({...u, id: String(u.id)})),
-            round: 1,
-            phase: 'awaitingAttackerRoll',
-            attackerRolls: [],
-            defenderRolls: [],
-            lastAttackerHits: 0,
-            lastDefenderHits: 0,
-            log: [`Battle started at ${id}. Attacker (${this.user.email}) vs Defender (${defenderOwner})`],
-            winner: null
-          };
-          data.activeBattle = battleObj;
-          await ref.update({ map: data.map, activeBattle: battleObj });
-          this.selected = null;
-          return;
-        } else {
-          // no enemy -> just move
-          data.map[id].units = data.map[id].units.concat(movingUnits);
-          this.selected = null;
-          await ref.update({ map: data.map });
-          return;
-        }
-      },
-
-      // remaining functions below are your battle functions (copied from earlier)
-      canRoll(side) {
-        if (!this.activeBattle || !this.user) return false;
-        if (this.phase === 'awaitingAttackerRoll' && side === 'attacker') return this.user.email === this.activeBattle.attackerEmail;
-        if (this.phase === 'awaitingDefenderRoll' && side === 'defender') return this.user.email === this.activeBattle.defenderEmail;
-        return false;
-      },
-
-      async rollDice(side) {
-        if (!this.activeBattle) return;
-        const ref = db.doc("games/demoGame");
-        const snap = await ref.get();
-        const data = snap.data();
-        const b = data.activeBattle;
-        if (!b) return;
-
-        if (side === 'attacker' && b.phase === 'awaitingAttackerRoll') {
-          const rolls = b.attackerUnits.map(u => rollDie());
-          let hits = 0;
-          for (let i=0;i<rolls.length;i++){
-            const t = b.attackerUnits[i].type;
-            const threshold = ATTACK_THRESHOLDS[t] || 0;
-            if (rolls[i] <= threshold) hits++;
-          }
-          b.attackerRolls = rolls;
-          b.lastAttackerHits = hits;
-          b.log.push(`Round ${b.round}: Attacker rolled [${rolls.join(', ')}] -> ${hits} hit(s)`);
-          b.phase = (hits > 0) ? 'chooseDefenderCasualties' : 'awaitingDefenderRoll';
-        } else if (side === 'defender' && b.phase === 'awaitingDefenderRoll') {
-          const rolls = b.defenderUnits.map(u => rollDie());
-          let hits = 0;
-          for (let i=0;i<rolls.length;i++){
-            const t = b.defenderUnits[i].type;
-            const threshold = DEFEND_THRESHOLDS[t] || 0;
-            if (rolls[i] <= threshold) hits++;
-          }
-          b.defenderRolls = rolls;
-          b.lastDefenderHits = hits;
-          b.log.push(`Round ${b.round}: Defender rolled [${rolls.join(', ')}] -> ${hits} hit(s)`);
-          b.phase = (hits > 0) ? 'chooseAttackerCasualties' : 'awaitingAttackerRoll';
-        } else {
-          return;
-        }
-        await ref.update({ activeBattle: b });
-      },
-
-      async applyDefenderCasualties() {
-        if (!this.activeBattle) return;
-        const ref = db.doc("games/demoGame");
-        const snap = await ref.get();
-        const data = snap.data();
-        const b = data.activeBattle;
-        if (!b) return;
-
-        const hits = b.lastAttackerHits || 0;
-        if (this.selectedCasualtiesDefender.length !== hits) { alert(`Select exactly ${hits} unit(s).`); return; }
-
-        b.defenderUnits = b.defenderUnits.filter(u => !this.selectedCasualtiesDefender.includes(String(u.id)));
-        b.log.push(`Defender removed ${hits} unit(s): ${this.selectedCasualtiesDefender.join(', ')}`);
-        this.selectedCasualtiesDefender = [];
-
-        if (b.defenderUnits.length === 0) {
-          b.winner = 'attacker';
-          b.phase = 'resolved';
-          b.log.push('Attacker eliminated all defenders!');
-          await ref.update({ activeBattle: b });
-          return;
-        }
-
-        b.phase = 'awaitingDefenderRoll';
-        await ref.update({ activeBattle: b });
-      },
-
-      async applyAttackerCasualties() {
-        if (!this.activeBattle) return;
-        const ref = db.doc("games/demoGame");
-        const snap = await ref.get();
-        const data = snap.data();
-        const b = data.activeBattle;
-        if (!b) return;
-
-        const hits = b.lastDefenderHits || 0;
-        if (this.selectedCasualtiesAttacker.length !== hits) { alert(`Select exactly ${hits} unit(s).`); return; }
-
-        b.attackerUnits = b.attackerUnits.filter(u => !this.selectedCasualtiesAttacker.includes(String(u.id)));
-        b.log.push(`Attacker removed ${hits} unit(s): ${this.selectedCasualtiesAttacker.join(', ')}`);
-        this.selectedCasualtiesAttacker = [];
-
-        if (b.attackerUnits.length === 0) {
-          b.winner = 'defender';
-          b.phase = 'resolved';
-          b.log.push('Defender eliminated all attackers!');
-          await ref.update({ activeBattle: b });
-          return;
-        }
-
-        b.round = (b.round || 1) + 1;
-        b.attackerRolls = [];
-        b.defenderRolls = [];
-        b.lastAttackerHits = 0;
-        b.lastDefenderHits = 0;
-        b.phase = 'awaitingAttackerRoll';
-        await ref.update({ activeBattle: b });
-      },
-
-      async finishBattle() {
-        const ref = db.doc("games/demoGame");
-        const snap = await ref.get();
-        const data = snap.data();
-        const b = data.activeBattle;
-        if (!b) return;
-
-        if (b.winner === 'attacker') {
-          data.map[b.territory].units = (b.attackerUnits || []).map(u => ({...u, id: String(u.id)}));
-        } else if (b.winner === 'defender') {
-          data.map[b.territory].units = (b.defenderUnits || []).map(u => ({...u, id: String(u.id)}));
-        } else {
-          data.map[b.territory].units = (b.attackerUnits || []).concat(b.defenderUnits || []);
-        }
-
-        data.battleHistory = data.battleHistory || [];
-        data.battleHistory.unshift({ at: new Date().toISOString(), summary: b.log.join(' | '), raw: b });
-
-        await ref.update({
-          map: data.map,
-          battleHistory: data.battleHistory,
-          activeBattle: firebase.firestore.FieldValue.delete()
-        });
-
-        this.battleSummaryLog.unshift(`Battle at ${b.territory}: ${b.winner}`);
-      },
-
-      async abortBattle() {
-        if (!this.canAbort) { alert('Only participants can abort'); return; }
-        const ref = db.doc("games/demoGame");
-        const snap = await ref.get();
-        const data = snap.data();
-        if (data.activeBattle) {
-          const b = data.activeBattle;
-          data.map[b.territory].units = (b.defenderUnits || []).concat(b.attackerUnits || []);
-        }
-        await ref.update({ map: data.map, activeBattle: firebase.firestore.FieldValue.delete() });
+    async handleTerritoryClick(id){
+      const ref=db.doc("games/demoGame");
+      const snap=await ref.get();const data=snap.data()||{map:{}};
+      if(!data.map[id])data.map[id]={units:[]};
+      if(!this.selected){
+        const own=(data.map[id].units||[]).filter(u=>u.owner===this.user.email);
+        if(own.length){this.selected={from:id,selectedUnitIds:[]};return;}
+        const u={id:Date.now(),type:"infantry",owner:this.user.email,color:colorForUser(this.user.email)};
+        data.map[id].units.push(u);await ref.update({map:data.map});return;
       }
+      if(this.selected.from===id){this.selected=null;return;}
+      const from=this.selected.from;const fromUnits=data.map[from].units||[];
+      const moveIds=this.selected.selectedUnitIds;
+      const moving=fromUnits.filter(u=>moveIds.includes(String(u.id)));
+      data.map[from].units=fromUnits.filter(u=>!moveIds.includes(String(u.id)));
+      const dest=data.map[id].units||[];
+      const enemies=dest.filter(u=>u.owner!==this.user.email);
+      if(enemies.length){
+        const battle={
+          territory:id,attackerEmail:this.user.email,defenderEmail:enemies[0].owner,
+          attackerUnits:moving,defenderUnits:dest,
+          round:1,phase:'awaitingAttackerRoll',
+          attackerRolls:[],defenderRolls:[],lastAttackerHits:0,lastDefenderHits:0,log:[]
+        };
+        data.activeBattle=battle;
+        await ref.update({map:data.map,activeBattle:battle});
+        this.selected=null;return;
+      }
+      data.map[id].units=dest.concat(moving);
+      await ref.update({map:data.map});
+      this.selected=null;
     },
-
-    mounted() {
-      auth.onAuthStateChanged(async (u) => {
-        this.user = u;
-        if (u) await this.ensureMapInitialized();
-      });
-
-      db.doc("games/demoGame").onSnapshot(snap => {
-        if (!snap.exists) return;
-        const data = snap.data();
-        this.map = data.map || {};
-        this.activeBattle = data.activeBattle || null;
-
-        if (this.activeBattle) {
-          this.activeBattle.attackerUnits = (this.activeBattle.attackerUnits || []).map(u => ({...u, id: String(u.id)}));
-          this.activeBattle.defenderUnits = (this.activeBattle.defenderUnits || []).map(u => ({...u, id: String(u.id)}));
-        }
-      });
+    canRoll(side){
+      if(!this.activeBattle)return false;
+      if(side==='attacker'&&this.phase==='awaitingAttackerRoll')return this.user.email===this.activeBattle.attackerEmail;
+      if(side==='defender'&&this.phase==='awaitingDefenderRoll')return this.user.email===this.activeBattle.defenderEmail;
+      return false;
+    },
+    async rollDice(side){
+      const ref=db.doc("games/demoGame");const snap=await ref.get();
+      const data=snap.data();const b=data.activeBattle;if(!b)return;
+      if(side==='attacker'&&b.phase==='awaitingAttackerRoll'){
+        const rolls=b.attackerUnits.map(()=>rollDie());
+        let hits=0;for(let i=0;i<rolls.length;i++){if(rolls[i]<=ATTACK_THRESHOLDS[b.attackerUnits[i].type])hits++;}
+        b.attackerRolls=rolls;b.lastAttackerHits=hits;
+        b.log.push(`Attacker rolled ${rolls.join(',')} → ${hits} hits`);
+        b.phase='awaitingDefenderRoll';
+      }else if(side==='defender'&&b.phase==='awaitingDefenderRoll'){
+        const rolls=b.defenderUnits.map(()=>rollDie());
+        let hits=0;for(let i=0;i<rolls.length;i++){if(rolls[i]<=DEFEND_THRESHOLDS[b.defenderUnits[i].type])hits++;}
+        b.defenderRolls=rolls;b.lastDefenderHits=hits;
+        b.log.push(`Defender rolled ${rolls.join(',')} → ${hits} hits`);
+        // both sides rolled => choose casualties
+        if(b.lastAttackerHits>0)b.phase='chooseDefenderCasualties';
+        else if(b.lastDefenderHits>0)b.phase='chooseAttackerCasualties';
+        else{b.round++;b.phase='awaitingAttackerRoll';}
+      }
+      await ref.update({activeBattle:b});
+    },
+    async applyDefenderCasualties(){
+      const ref=db.doc("games/demoGame");const snap=await ref.get();
+      const data=snap.data();const b=data.activeBattle;const hits=b.lastAttackerHits;
+      b.defenderUnits=b.defenderUnits.filter(u=>!this.selectedCasualtiesDefender.includes(String(u.id)));
+      this.selectedCasualtiesDefender=[];
+      if(b.defenderUnits.length===0){b.winner='attacker';b.phase='resolved';}
+      else if(b.lastDefenderHits>0){b.phase='chooseAttackerCasualties';}
+      else{b.round++;b.phase='awaitingAttackerRoll';}
+      await ref.update({activeBattle:b});
+    },
+    async applyAttackerCasualties(){
+      const ref=db.doc("games/demoGame");const snap=await ref.get();
+      const data=snap.data();const b=data.activeBattle;const hits=b.lastDefenderHits;
+      b.attackerUnits=b.attackerUnits.filter(u=>!this.selectedCasualtiesAttacker.includes(String(u.id)));
+      this.selectedCasualtiesAttacker=[];
+      if(b.attackerUnits.length===0){b.winner='defender';b.phase='resolved';}
+      else{b.round++;b.phase='awaitingAttackerRoll';}
+      await ref.update({activeBattle:b});
+    },
+    async finishBattle(){
+      const ref=db.doc("games/demoGame");const snap=await ref.get();
+      const data=snap.data();const b=data.activeBattle;
+      if(b.winner==='attacker')data.map[b.territory].units=b.attackerUnits;
+      else if(b.winner==='defender')data.map[b.territory].units=b.defenderUnits;
+      await ref.update({map:data.map,activeBattle:firebase.firestore.FieldValue.delete()});
     }
-  });
-
-  app.mount('#app');
-
-  // helpers
-  function rollDie() { return Math.floor(Math.random()*6)+1; }
+  },
+  mounted(){
+    auth.onAuthStateChanged(async u=>{this.user=u;if(u)await this.ensureMapInitialized();});
+    db.doc("games/demoGame").onSnapshot(snap=>{
+      const d=snap.data();if(!d)return;this.map=d.map||{};this.activeBattle=d.activeBattle||null;
+    });
+  }
+});
+app.mount('#app');
 </script>
 </body>
 </html>
