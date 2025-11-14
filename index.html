@@ -422,16 +422,16 @@
 
       // remaining functions below are your battle functions (copied from earlier)
       canRoll(side) {
-  if (!this.activeBattle || !this.user) return false;
-  // New: use explicit nextToRoll field (values: 'attacker' or 'defender')
-  if (!this.activeBattle.nextToRoll) return false;
-  if (side === 'attacker') {
-    return this.activeBattle.nextToRoll === 'attacker' && this.user.email === this.activeBattle.attackerEmail;
-  } else if (side === 'defender') {
-    return this.activeBattle.nextToRoll === 'defender' && this.user.email === this.activeBattle.defenderEmail;
-  }
-  return false;
-},
+        if (!this.activeBattle || !this.user) return false;
+        // New: use explicit nextToRoll field (values: 'attacker' or 'defender')
+        if (!this.activeBattle.nextToRoll) return false;
+        if (side === 'attacker') {
+          return this.activeBattle.nextToRoll === 'attacker' && this.user.email === this.activeBattle.attackerEmail;
+        } else if (side === 'defender') {
+          return this.activeBattle.nextToRoll === 'defender' && this.user.email === this.activeBattle.defenderEmail;
+        }
+        return false;
+      },
 
       async rollDice(side) {
         if (!this.activeBattle) return;
@@ -442,83 +442,83 @@
         if (!b) return;
 
         if (side === 'attacker' && b.phase === 'awaitingAttackerRoll') {
-  const rolls = b.attackerUnits.map(u => rollDie());
-  let hits = 0;
-  for (let i = 0; i < rolls.length; i++) {
-    const t = b.attackerUnits[i].type;
-    const threshold = ATTACK_THRESHOLDS[t] || 0;
-    if (rolls[i] <= threshold) hits++;
-  }
-
-  b.attackerRolls = rolls;
-  b.lastAttackerHits = hits;
-  b.log.push(`Round ${b.round}: Attacker rolled [${rolls.join(', ')}] -> ${hits} hit(s)`);
-
-  if (hits > 0) {
-    // apply casualties immediately (you already do this)
-    const casualties = autoAssignCasualties(b.defenderUnits, hits);
-    b.defenderUnits = b.defenderUnits.filter(u => !casualties.includes(String(u.id)));
-    b.log.push(`Defender automatically lost ${hits} unit(s): ${casualties.join(', ')}`);
-
-    if (b.defenderUnits.length === 0) {
-      b.winner = "attacker";
-      b.phase = "resolved";
-      b.nextToRoll = null;
-      b.log.push("Attacker eliminated all defenders!");
-    } else {
-      b.phase = "awaitingDefenderRoll";
-      b.nextToRoll = 'defender';         // <--- explicit grant to defender
-      b.defenderRolls = [];              // clear to force snapshot diff
-    }
-  } else {
-    // attacker missed — defender still gets to roll
-    b.log.push(`Attacker scored 0 hits.`);
-    b.phase = "awaitingDefenderRoll";
-    b.nextToRoll = 'defender';         // <--- important: explicitly allow defender to roll
-    b.defenderRolls = [];              // clear to force snapshot diff
-  }
-
-  // persist
-  await ref.update({ activeBattle: b });
-  return;
-}
-  if (side === 'defender' && b.phase === 'awaitingDefenderRoll') {
-  const rolls = b.defenderUnits.map(u => rollDie());
-  let hits = 0;
-  for (let i = 0; i < rolls.length; i++) {
-    const t = b.defenderUnits[i].type;
-    const threshold = DEFEND_THRESHOLDS[t] || 0;
-    if (rolls[i] <= threshold) hits++;
-  }
-
-  b.defenderRolls = rolls;
-  b.lastDefenderHits = hits;
-  b.log.push(`Round ${b.round}: Defender rolled [${rolls.join(', ')}] -> ${hits} hit(s)`);
-
-  if (hits > 0) {
-    const casualties = autoAssignCasualties(b.attackerUnits, hits);
-    b.attackerUnits = b.attackerUnits.filter(u => !casualties.includes(String(u.id)));
-    b.log.push(`Attacker automatically lost ${hits} unit(s): ${casualties.join(", ")}`);
-
-    if (b.attackerUnits.length === 0) {
-      b.winner = "defender";
-      b.phase = "resolved";
-      b.nextToRoll = null;
-      b.log.push("Defender eliminated all attackers!");
-    } else {
-      b.phase = "awaitingAttackerRoll";
-      b.nextToRoll = 'attacker';      // <--- explicit grant back to attacker
-      b.attackerRolls = [];           // clear so snapshot clearly changed
-    }
-  } else {
-    b.phase = "awaitingAttackerRoll";
-    b.nextToRoll = 'attacker';
-    b.attackerRolls = [];
-  }
-
-  await ref.update({ activeBattle: b });
-  return;
-},
+          const rolls = b.attackerUnits.map(u => rollDie());
+          let hits = 0;
+          for (let i = 0; i < rolls.length; i++) {
+            const t = b.attackerUnits[i].type;
+            const threshold = ATTACK_THRESHOLDS[t] || 0;
+            if (rolls[i] <= threshold) hits++;
+          }
+        
+          b.attackerRolls = rolls;
+          b.lastAttackerHits = hits;
+          b.log.push(`Round ${b.round}: Attacker rolled [${rolls.join(', ')}] -> ${hits} hit(s)`);
+        
+          if (hits > 0) {
+            // apply casualties immediately (you already do this)
+            const casualties = autoAssignCasualties(b.defenderUnits, hits);
+            b.defenderUnits = b.defenderUnits.filter(u => !casualties.includes(String(u.id)));
+            b.log.push(`Defender automatically lost ${hits} unit(s): ${casualties.join(', ')}`);
+        
+            if (b.defenderUnits.length === 0) {
+              b.winner = "attacker";
+              b.phase = "resolved";
+              b.nextToRoll = null;
+              b.log.push("Attacker eliminated all defenders!");
+            } else {
+              b.phase = "awaitingDefenderRoll";
+              b.nextToRoll = 'defender';         // <--- explicit grant to defender
+              b.defenderRolls = [];              // clear to force snapshot diff
+            }
+          } else {
+            // attacker missed — defender still gets to roll
+            b.log.push(`Attacker scored 0 hits.`);
+            b.phase = "awaitingDefenderRoll";
+            b.nextToRoll = 'defender';         // <--- important: explicitly allow defender to roll
+            b.defenderRolls = [];              // clear to force snapshot diff
+          }
+        
+          // persist
+          await ref.update({ activeBattle: b });
+          return;
+        }
+          if (side === 'defender' && b.phase === 'awaitingDefenderRoll') {
+          const rolls = b.defenderUnits.map(u => rollDie());
+          let hits = 0;
+          for (let i = 0; i < rolls.length; i++) {
+            const t = b.defenderUnits[i].type;
+            const threshold = DEFEND_THRESHOLDS[t] || 0;
+            if (rolls[i] <= threshold) hits++;
+          }
+        
+          b.defenderRolls = rolls;
+          b.lastDefenderHits = hits;
+          b.log.push(`Round ${b.round}: Defender rolled [${rolls.join(', ')}] -> ${hits} hit(s)`);
+        
+          if (hits > 0) {
+            const casualties = autoAssignCasualties(b.attackerUnits, hits);
+            b.attackerUnits = b.attackerUnits.filter(u => !casualties.includes(String(u.id)));
+            b.log.push(`Attacker automatically lost ${hits} unit(s): ${casualties.join(", ")}`);
+        
+            if (b.attackerUnits.length === 0) {
+              b.winner = "defender";
+              b.phase = "resolved";
+              b.nextToRoll = null;
+              b.log.push("Defender eliminated all attackers!");
+            } else {
+              b.phase = "awaitingAttackerRoll";
+              b.nextToRoll = 'attacker';      // <--- explicit grant back to attacker
+              b.attackerRolls = [];           // clear so snapshot clearly changed
+            }
+          } else {
+            b.phase = "awaitingAttackerRoll";
+            b.nextToRoll = 'attacker';
+            b.attackerRolls = [];
+          }
+        
+          await ref.update({ activeBattle: b });
+          return;
+        }
 
 
       async applyDefenderCasualties() {
