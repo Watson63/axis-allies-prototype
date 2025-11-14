@@ -463,27 +463,19 @@
     b.phase = "awaitingDefenderRoll";
 }
 
-        } if (side === 'defender' && b.phase === 'chooseAttackerCasualties') {
-    const hits = b.lastDefenderHits || 0;
-
-    const casualties = autoAssignCasualties(b.attackerUnits, hits);
-    b.attackerUnits = b.attackerUnits.filter(
-      u => !casualties.includes(String(u.id))
-    );
-
-    b.log.push(`Attacker automatically lost ${hits} unit(s): ${casualties.join(", ")}`);
-
-    if (b.attackerUnits.length === 0) {
-      b.winner = "defender";
-      b.phase = "resolved";
-      b.log.push("Defender eliminated all attackers!");
-    } else {
-      b.round++;
-      b.defenderRolls = [];
-      b.attackerRolls = [];
-      b.phase = "awaitingAttackerRoll";
-    }
-} else {
+        } else if (side === 'defender' && b.phase === 'awaitingDefenderRoll') {
+          const rolls = b.defenderUnits.map(u => rollDie());
+          let hits = 0;
+          for (let i=0;i<rolls.length;i++){
+            const t = b.defenderUnits[i].type;
+            const threshold = DEFEND_THRESHOLDS[t] || 0;
+            if (rolls[i] <= threshold) hits++;
+          }
+          b.defenderRolls = rolls;
+          b.lastDefenderHits = hits;
+          b.log.push(`Round ${b.round}: Defender rolled [${rolls.join(', ')}] -> ${hits} hit(s)`);
+          b.phase = (hits > 0) ? 'chooseAttackerCasualties' : 'awaitingAttackerRoll';
+        } else {
           return;
         }
         await ref.update({ activeBattle: b });
