@@ -224,7 +224,18 @@
   // thresholds: attacker vs defender per unit type
   const ATTACK_THRESHOLDS = { infantry: 1, tank: 3, artillery: 3, fighter: 4, bomber: 4 };
   const DEFEND_THRESHOLDS = { infantry: 2, tank: 3, artillery: 3, fighter: 4, bomber: 4 };
+  const PRIORITY_ORDER = ["infantry", "artillery", "tank", "fighter", "bomber"];
 
+  function autoAssignCasualties(units, hits) {
+    if (hits <= 0) return [];
+  
+    const sorted = [...units].sort(
+      (a, b) => PRIORITY_ORDER.indexOf(a.type) - PRIORITY_ORDER.indexOf(b.type)
+    );
+  
+    return sorted.slice(0, hits).map(u => String(u.id));
+  }
+  
   const app = Vue.createApp({
     data() {
       return {
@@ -455,26 +466,32 @@
         const data = snap.data();
         const b = data.activeBattle;
         if (!b) return;
-
+      
         const hits = b.lastAttackerHits || 0;
-        if (this.selectedCasualtiesDefender.length !== hits) { alert(`Select exactly ${hits} unit(s).`); return; }
-
-        b.defenderUnits = b.defenderUnits.filter(u => !this.selectedCasualtiesDefender.includes(String(u.id)));
-        b.log.push(`Defender removed ${hits} unit(s): ${this.selectedCasualtiesDefender.join(', ')}`);
-        this.selectedCasualtiesDefender = [];
-
+      
+        const casualties = autoAssignCasualties(b.defenderUnits, hits);
+      
+        b.defenderUnits = b.defenderUnits.filter(
+          u => !casualties.includes(String(u.id))
+        );
+      
+        b.log.push(
+          `Defender automatically lost ${hits} unit(s): ${casualties.join(", ")}`
+        );
+      
         if (b.defenderUnits.length === 0) {
-          b.winner = 'attacker';
-          b.phase = 'resolved';
-          b.log.push('Attacker eliminated all defenders!');
+          b.winner = "attacker";
+          b.phase = "resolved";
+          b.log.push("Attacker eliminated all defenders!");
           await ref.update({ activeBattle: b });
           return;
         }
-
-        b.phase = 'awaitingDefenderRoll';
+      
+        b.phase = "awaitingDefenderRoll";
         await ref.update({ activeBattle: b });
       },
-
+      
+      
       async applyAttackerCasualties() {
         if (!this.activeBattle) return;
         const ref = db.doc("games/demoGame");
@@ -482,28 +499,32 @@
         const data = snap.data();
         const b = data.activeBattle;
         if (!b) return;
-
+      
         const hits = b.lastDefenderHits || 0;
-        if (this.selectedCasualtiesAttacker.length !== hits) { alert(`Select exactly ${hits} unit(s).`); return; }
-
-        b.attackerUnits = b.attackerUnits.filter(u => !this.selectedCasualtiesAttacker.includes(String(u.id)));
-        b.log.push(`Attacker removed ${hits} unit(s): ${this.selectedCasualtiesAttacker.join(', ')}`);
-        this.selectedCasualtiesAttacker = [];
-
+      
+        const casualties = autoAssignCasualties(b.attackerUnits, hits);
+      
+        b.attackerUnits = b.attackerUnits.filter(
+          u => !casualties.includes(String(u.id))
+        );
+      
+        b.log.push(
+          `Attacker automatically lost ${hits} unit(s): ${casualties.join(", ")}`
+        );
+      
         if (b.attackerUnits.length === 0) {
-          b.winner = 'defender';
-          b.phase = 'resolved';
-          b.log.push('Defender eliminated all attackers!');
+          b.winner = "defender";
+          b.phase = "resolved";
+          b.log.push("Defender eliminated all attackers!");
           await ref.update({ activeBattle: b });
           return;
         }
-
+      
         b.round = (b.round || 1) + 1;
         b.attackerRolls = [];
         b.defenderRolls = [];
-        b.lastAttackerHits = 0;
-        b.lastDefenderHits = 0;
-        b.phase = 'awaitingAttackerRoll';
+        b.phase = "awaitingAttackerRoll";
+      
         await ref.update({ activeBattle: b });
       },
 
