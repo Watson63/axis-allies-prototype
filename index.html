@@ -474,7 +474,22 @@
           b.defenderRolls = rolls;
           b.lastDefenderHits = hits;
           b.log.push(`Round ${b.round}: Defender rolled [${rolls.join(', ')}] -> ${hits} hit(s)`);
-          b.phase = (hits > 0) ? 'chooseAttackerCasualties' : 'awaitingAttackerRoll';
+          if (hits > 0) {
+              const casualties = autoAssignCasualties(b.attackerUnits, hits);
+              b.attackerUnits = b.attackerUnits.filter(u => !casualties.includes(String(u.id)));
+              b.log.push(`Attacker automatically lost ${hits} unit(s): ${casualties.join(", ")}`);
+          
+              if (b.attackerUnits.length === 0) {
+                  b.winner = "defender";
+                  b.phase = "resolved";
+                  b.log.push("Defender eliminated all attackers!");
+              } else {
+                  b.phase = "awaitingAttackerRoll";
+              }
+          } else {
+              b.phase = "awaitingAttackerRoll";
+          }
+
         } else {
           return;
         }
