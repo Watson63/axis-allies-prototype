@@ -481,7 +481,7 @@
           // persist
           await ref.update({ activeBattle: b });
           return;
-        }
+        
           if (side === 'defender' && b.phase === 'awaitingDefenderRoll') {
           const rolls = b.defenderUnits.map(u => rollDie());
           let hits = 0;
@@ -518,7 +518,7 @@
         
           await ref.update({ activeBattle: b });
           return;
-        }
+        },
 
 
       async applyDefenderCasualties() {
