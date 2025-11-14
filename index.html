@@ -440,36 +440,20 @@
   const b = data.activeBattle;
   if (!b) return;
 
-  // --- Attacker roll ---
   if (side === 'attacker' && b.phase === 'awaitingAttackerRoll') {
-    const rolls = b.attackerUnits.map(() => rollDie());
-    let hits = 0;
-    for (let i = 0; i < rolls.length; i++) {
+    // --- Attacker rolls ---
+    const attRolls = b.attackerUnits.map(() => rollDie());
+    let attHits = 0;
+    for (let i = 0; i < attRolls.length; i++) {
       const t = b.attackerUnits[i].type;
       const threshold = ATTACK_THRESHOLDS[t] || 0;
-      if (rolls[i] <= threshold) hits++;
+      if (attRolls[i] <= threshold) attHits++;
     }
+    b.attackerRolls = attRolls;
+    b.lastAttackerHits = attHits;
+    b.log.push(`Round ${b.round}: Attacker rolled [${attRolls.join(', ')}] -> ${attHits} hit(s)`);
 
-    b.attackerRolls = rolls;
-    b.lastAttackerHits = hits;
-    b.log.push(`Round ${b.round}: Attacker rolled [${rolls.join(', ')}] -> ${hits} hit(s)`);
-
-    // Apply defender casualties
-    if (hits > 0) {
-      const casualties = autoAssignCasualties(b.defenderUnits, hits);
-      b.defenderUnits = b.defenderUnits.filter(u => !casualties.includes(String(u.id)));
-      b.log.push(`Defender automatically lost ${hits} unit(s): ${casualties.join(', ')}`);
-    }
-    // If defenders are gone, attacker wins
-    if (b.defenderUnits.length === 0) {
-      b.winner = "attacker";
-      b.phase = "resolved";
-      b.nextToRoll = null;
-      await ref.update({ activeBattle: b });
-      return;
-    }
-
-    // --- Defender roll happens automatically ---
+    // --- Defender rolls (before casualties are applied) ---
     const defRolls = b.defenderUnits.map(() => rollDie());
     let defHits = 0;
     for (let i = 0; i < defRolls.length; i++) {
@@ -477,27 +461,39 @@
       const threshold = DEFEND_THRESHOLDS[t] || 0;
       if (defRolls[i] <= threshold) defHits++;
     }
-
     b.defenderRolls = defRolls;
     b.lastDefenderHits = defHits;
     b.log.push(`Round ${b.round}: Defender rolled [${defRolls.join(', ')}] -> ${defHits} hit(s)`);
 
-    // Apply attacker casualties
-    if (defHits > 0) {
-      const casualties = autoAssignCasualties(b.attackerUnits, defHits);
-      b.attackerUnits = b.attackerUnits.filter(u => !casualties.includes(String(u.id)));
-      b.log.push(`Attacker automatically lost ${defHits} unit(s): ${casualties.join(', ')}`);
+    // --- Apply casualties simultaneously ---
+    if (attHits > 0) {
+      const casualtiesDef = autoAssignCasualties(b.defenderUnits, attHits);
+      b.defenderUnits = b.defenderUnits.filter(u => !casualtiesDef.includes(String(u.id)));
+      b.log.push(`Defender lost ${attHits} unit(s): ${casualtiesDef.join(', ')}`);
     }
-    // If attackers are gone, defender wins
-    if (b.attackerUnits.length === 0) {
+    if (defHits > 0) {
+      const casualtiesAtt = autoAssignCasualties(b.attackerUnits, defHits);
+      b.attackerUnits = b.attackerUnits.filter(u => !casualtiesAtt.includes(String(u.id)));
+      b.log.push(`Attacker lost ${defHits} unit(s): ${casualtiesAtt.join(', ')}`);
+    }
+
+    // --- Check for winner ---
+    if (b.defenderUnits.length === 0 && b.attackerUnits.length === 0) {
+      b.winner = "mutual destruction";
+      b.phase = "resolved";
+      b.nextToRoll = null;
+    } else if (b.defenderUnits.length === 0) {
+      b.winner = "attacker";
+      b.phase = "resolved";
+      b.nextToRoll = null;
+    } else if (b.attackerUnits.length === 0) {
       b.winner = "defender";
       b.phase = "resolved";
       b.nextToRoll = null;
     } else {
-      // Otherwise, next round attacker goes again
+      b.round++;
       b.phase = "awaitingAttackerRoll";
       b.nextToRoll = "attacker";
-      b.round++;
       b.attackerRolls = [];
       b.defenderRolls = [];
     }
@@ -506,10 +502,6 @@
     return;
   }
 },
-
-
-
-      
 
 
       async applyDefenderCasualties() {
