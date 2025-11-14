@@ -399,6 +399,7 @@
             defenderUnits: destUnits.map(u => ({...u, id: String(u.id)})),
             round: 1,
             phase: 'awaitingAttackerRoll',
+            nextToRoll: 'attacker',    // <-- NEW: who is allowed to roll next
             attackerRolls: [],
             defenderRolls: [],
             lastAttackerHits: 0,
