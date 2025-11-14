@@ -447,19 +447,26 @@
           b.lastAttackerHits = hits;
           b.log.push(`Round ${b.round}: Attacker rolled [${rolls.join(', ')}] -> ${hits} hit(s)`);
           if (hits > 0) {
-    // auto-assign casualties immediately
-    const casualties = autoAssignCasualties(b.defenderUnits, hits);
-    b.defenderUnits = b.defenderUnits.filter(u => !casualties.includes(String(u.id)));
-    b.log.push(`Defender automatically lost ${hits} unit(s): ${casualties.join(", ")}`);
-
-    if (b.defenderUnits.length === 0) {
-        b.winner = "attacker";
-        b.phase = "resolved";
-        b.log.push("Attacker eliminated all defenders!");
-    } else {
+            // auto-assign casualties immediately
+            const casualties = autoAssignCasualties(b.defenderUnits, hits);
+            b.defenderUnits = b.defenderUnits.filter(u => !casualties.includes(String(u.id)));
+            b.log.push(`Defender automatically lost ${hits} unit(s): ${casualties.join(", ")}`);
+        
+            if (b.defenderUnits.length === 0) {
+                b.winner = "attacker";
+                b.phase = "resolved";
+                b.log.push("Attacker eliminated all defenders!");
+            } else {
+                b.phase = "awaitingDefenderRoll";
+            }
+        } else {
+        // ✅ IMPORTANT FIX: attacker missed → defender still gets to roll
+        b.log.push(`Attacker scored 0 hits.`);
         b.phase = "awaitingDefenderRoll";
     }
-}
+
+    await ref.update({ activeBattle: b });
+    return;
 
         } else if (side === 'defender' && b.phase === 'awaitingDefenderRoll') {
           const rolls = b.defenderUnits.map(u => rollDie());
