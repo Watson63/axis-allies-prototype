@@ -58,49 +58,71 @@
       <div>How-to: Click your source territory to select it. Use the checkboxes to pick specific units or use the stepper to set a count. Then click a destination to move the selected units (or start a battle if enemies are present).</div>
     </div>
 
-    <div id="board">
-      <div
-        v-for="id in territoryOrder"
-        :key="id"
-        class="territory"
-        :class="{ selected: selected && selected.from === id }"
-        @click="handleTerritoryClick(id)"
-      >
-        <strong>{{ id }}</strong>
+    <div id="board" style="position:relative; width:100%; max-width:1200px; margin:auto;">
+  <svg viewBox="0 0 1200 600" preserveAspectRatio="xMidYMid meet" style="width:100%; height:auto;">
+    <!-- Sea background -->
+    <rect x="0" y="0" width="1200" height="600" fill="#87CEEB" />
 
-        <!-- list units -->
-        <div v-for="u in map[id]?.units || []" :key="u.id" style="width:100%; display:flex; justify-content:space-between; align-items:center; margin-top:6px;">
-          <div style="display:flex; gap:6px; align-items:center;">
-            <!-- show checkbox for units only if this territory is selected and it's your unit -->
-            <input
-              v-if="selected && selected.from === id && u.owner === user.email"
-              type="checkbox"
-              class="checkbox"
-              :value="String(u.id)"
-              v-model="selected.selectedUnitIds"
-            />
-            <div class="unit" :style="{ backgroundColor: u.color || '#999' }">{{ u.type }}</div>
+    <!-- Territories -->
+    <g v-for="id in territoryOrder" :key="id">
+      <!-- Example shapes for 5 land territories -->
+      <path v-if="id==='A'" d="M100,100 h200 v150 h-200 Z"
+            class="territory"
+            :class="{ selected: selected && selected.from === id }"
+            @click="handleTerritoryClick(id)" />
+      <path v-if="id==='B'" d="M400,120 h200 v150 h-200 Z"
+            class="territory"
+            :class="{ selected: selected && selected.from === id }"
+            @click="handleTerritoryClick(id)" />
+      <path v-if="id==='C'" d="M700,140 h200 v150 h-200 Z"
+            class="territory"
+            :class="{ selected: selected && selected.from === id }"
+            @click="handleTerritoryClick(id)" />
+      <path v-if="id==='D'" d="M250,350 h200 v150 h-200 Z"
+            class="territory"
+            :class="{ selected: selected && selected.from === id }"
+            @click="handleTerritoryClick(id)" />
+      <path v-if="id==='E'" d="M600,360 h200 v150 h-200 Z"
+            class="territory"
+            :class="{ selected: selected && selected.from === id }"
+            @click="handleTerritoryClick(id)" />
+
+      <!-- Units list (keeps your checkbox + stepper logic) -->
+      <foreignObject v-if="map[id]?.units?.length"
+                     :x="territoryCenters[id].x"
+                     :y="territoryCenters[id].y"
+                     width="200" height="200">
+        <div xmlns="http://www.w3.org/1999/xhtml" style="display:flex; flex-direction:column;">
+          <div v-for="u in map[id]?.units || []" :key="u.id"
+               style="width:100%; display:flex; justify-content:space-between; align-items:center; margin-top:6px;">
+            <div style="display:flex; gap:6px; align-items:center;">
+              <input v-if="selected && selected.from === id && u.owner === user.email"
+                     type="checkbox"
+                     class="checkbox"
+                     :value="String(u.id)"
+                     v-model="selected.selectedUnitIds" />
+              <div class="unit" :style="{ backgroundColor: u.color || '#999' }">{{ u.type }}</div>
+            </div>
           </div>
-          <!-- owner hidden -->
+
+          <!-- Selection controls -->
+          <div v-if="selected && selected.from === id" style="margin-top:6px; display:flex; flex-direction:column; gap:6px;">
+            <div style="display:flex; gap:6px;">
+              <button class="btn btn-muted" @click.stop="selectAllFrom(id)">Select All</button>
+              <button class="btn btn-muted" @click.stop="cancelSelection()">Cancel</button>
+            </div>
+            <div class="stepper">
+              <button class="btn" @click.stop="decrementMoveCount()">-</button>
+              <div class="small">Move count: <strong>{{ selected.moveCount }}</strong></div>
+              <button class="btn" @click.stop="incrementMoveCount(id)">+</button>
+              <button class="btn btn-primary" @click.stop="applyMoveCountSelection(id)">Use Count</button>
+            </div>
+          </div>
         </div>
-
-        <!-- selection controls -->
-        <div v-if="selected && selected.from === id" style="margin-top:6px; display:flex; flex-direction:column; gap:6px;">
-          <div style="display:flex; gap:6px;">
-            <button class="btn btn-muted" @click.stop="selectAllFrom(id)">Select All</button>
-            <button class="btn btn-muted" @click.stop="cancelSelection()">Cancel</button>
-          </div>
-
-          <!-- stepper to choose count to move -->
-          <div class="stepper">
-            <button class="btn" @click.stop="decrementMoveCount()">-</button>
-            <div class="small">Move count: <strong>{{ selected.moveCount }}</strong></div>
-            <button class="btn" @click.stop="incrementMoveCount(id)">+</button>
-            <button class="btn btn-primary" @click.stop="applyMoveCountSelection(id)">Use Count</button>
-          </div>
-        </div>
-      </div>
-    </div>
+      </foreignObject>
+    </g>
+  </svg>
+</div>
 
     <div id="log" style="width:80%; margin:14px auto;">
       <h4 class="small">Battle Summary Log</h4>
