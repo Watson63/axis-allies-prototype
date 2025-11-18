@@ -33,6 +33,9 @@
     .unit-row { display:flex; align-items:center; justify-content:space-between; margin:4px 0; }
     .stepper { display:flex; gap:6px; align-items:center; margin-top:6px; }
     .stepper button { padding:4px 8px; }
+    path {pointer-events: all; cursor: pointer; /* optional: show pointer cursor */}
+
+
   </style>
 </head>
 <body>
@@ -46,6 +49,7 @@
 
   <div v-else>
     <h2>Welcome, {{ user.email }}</h2>
+    <button class="btn btn-danger" @click="logout">Logout</button>
 
     <div class="controls">
       <label class="small"><strong>Select Unit Type to Place:</strong></label><br>
@@ -58,71 +62,96 @@
       <div>How-to: Click your source territory to select it. Use the checkboxes to pick specific units or use the stepper to set a count. Then click a destination to move the selected units (or start a battle if enemies are present).</div>
     </div>
 
-    <div id="board" style="position:relative; width:100%; max-width:1200px; margin:auto;">
-  <svg viewBox="0 0 1200 600" preserveAspectRatio="xMidYMid meet" style="width:100%; height:auto;">
-    <!-- Sea background -->
-    <rect x="0" y="0" width="1200" height="600" fill="#87CEEB" />
+    <div id="map-container" style="position:relative; width:100%; max-width:1200px; margin:auto;">
+      <svg
+   width="406.39999mm"
+   height="270.93332mm"
+   viewBox="0 0 406.39999 270.93332"
+   version="1.1"
+   id="svg1"
+   @click="onSvgClick"
+   xml:space="preserve"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg"><defs
+     id="defs1" /><g
+     id="Sea_zones"
+     style="opacity:1"><path
+       style="opacity:0.7;fill:none;fill-opacity:1;stroke:#0024a9;stroke-width:1.00012;stroke-dasharray:none;stroke-opacity:0.82474226"
+       d="M 109.04502,155.99978 70.695988,190.7639 0,190.95601 9.0820305e-7,46.874514 84.723763,48.027166 l 60.510267,0.38435"
+       id="sea_6" /><path
+       style="opacity:0.7;fill:none;fill-opacity:1;stroke:#0024a9;stroke-width:1.00012;stroke-dasharray:none;stroke-opacity:0.824742"
+       d="m 199.40902,236.9075 0.19243,34.02583 L 0,270.9333 v -79.97729"
+       id="sea_5" /><path
+       style="opacity:0.7;fill:none;fill-opacity:1;stroke:#0024a9;stroke-width:1.00012;stroke-dasharray:none;stroke-opacity:0.824742"
+       d="m 289.69962,178.27697 116.70037,0.38409 v 92.27227 H 199.60145"
+       id="sea_4" /><path
+       style="opacity:0.7;fill:none;fill-opacity:1;stroke:#0024a9;stroke-width:1.00012;stroke-dasharray:none;stroke-opacity:0.824742"
+       d="m 304.30028,85.488321 102.09971,1.729013 v 91.443726"
+       id="sea_3" /><path
+       style="opacity:0.7;fill:none;fill-opacity:1;stroke:#0024a9;stroke-width:1.00012;stroke-dasharray:none;stroke-opacity:0.824742"
+       d="M 232.83592,28.816329 232.83206,0 406.39999,4.8046875e-6 V 87.217334"
+       id="sea_2" /><path
+       style="opacity:0.7;fill:none;fill-opacity:1;stroke:#0024a9;stroke-width:1.00012;stroke-dasharray:none;stroke-opacity:0.824742"
+       d="M 232.83206,0 H 0 l 9.0820305e-7,46.874514"
+       id="sea_1" /></g><path
+     id="H"
+     style="opacity:1;fill:none;fill-opacity:0.844828;stroke:#654900;stroke-width:1.00012;stroke-dasharray:none;stroke-opacity:1"
+     d="M 234.36657 97.813151 C 234.18949 97.548563 233.72213 96.884591 233.04469 96.175525 C 232.16821 95.258132 230.9497 94.30187 229.66402 94.046973 C 226.83506 93.486104 224.22662 93.671802 224.22662 93.671802 L 223.98064 93.689372 L 221.0139 90.328337 L 212.08783 86.836043 L 210.59748 83.107589 L 207.06075 83.107589 L 207.1796 82.509692 C 207.1796 82.509692 207.25107 82.21697 207.01734 81.750049 C 206.78361 81.283128 206.22894 80.655178 204.73841 80.203373 C 202.03888 79.385096 198.63895 77.90364 197.59827 77.440751 L 194.33026 80.707218 L 194.13647 86.545105 L 188.26758 90.066337 L 181.47833 104.22826 L 175.49213 104.42773 L 168.68376 106.95678 L 163.78328 105.38892 L 157.89734 105.21218 L 155.65251 114.61729 L 158.00586 120.80658 L 158.00586 126.48995 L 172.53314 130.28145 L 179.10535 138.45305 L 188.69339 144.57826 L 195.58806 144.57826 L 199.62606 147.33468 L 206.44115 143.4667 L 214.45874 137.79469 L 231.95483 140.2948 L 244.36493 132.46685 L 244.45485 132.44928 C 244.45485 132.44928 246.10518 132.1175 248.06289 131.74545 L 246.18342 128.4981 L 246.32037 122.96665 L 241.00958 116.10144 L 239.06241 116.10144 L 235.79698 113.87522 L 234.09579 107.92209 L 234.36657 97.813151 z " /><path
+     id="G"
+     style="opacity:1;fill:none;fill-opacity:0.844828;stroke:#654900;stroke-width:1.00012;stroke-dasharray:none;stroke-opacity:1"
+     d="M 109.70131 83.622803 L 113.18947 86.937329 L 122.03493 88.256112 L 132.25963 88.646269 L 137.23658 93.87489 L 151.65017 97.486556 L 157.73456 104.20501 L 163.9533 104.39466 L 168.65999 105.89845 L 175.29679 103.43348 L 180.83806 103.24796 L 187.49605 89.363538 L 193.1541 85.968913 L 193.34375 80.279338 L 196.95542 76.669739 L 196.05677 70.734184 L 191.92989 66.411967 L 193.3205 61.841703 L 191.95728 55.998132 L 194.91782 51.548792 L 194.3008 45.386894 L 194.7969 45.337284 L 187.88207 42.264087 L 186.72969 39.958801 L 180.58226 40.72723 L 178.66093 38.037472 L 175.97169 33.811373 L 179.42936 29.200285 L 174.81879 29.200285 L 169.43979 32.273999 L 167.1345 38.037472 C 167.1345 38.037472 161.75551 38.806143 160.98707 40.72723 C 160.21864 42.648316 160.6026 45.721757 160.6026 45.721757 L 153.30279 47.258614 C 153.30279 47.258614 154.07098 42.263813 151.38146 44.1849 C 148.69194 46.105986 145.23403 48.411515 145.23403 48.411515 L 140.62346 53.790515 C 140.62346 53.790515 139.08687 53.790248 137.16579 54.9429 C 135.2447 56.095552 133.7076 57.248185 133.7076 57.248185 L 129.48099 63.395614 L 125.25489 66.085372 L 119.10746 65.701416 L 116.4177 70.311987 L 116.4177 75.690987 C 116.4177 78.380508 119.10747 78.764427 116.80217 80.685514 C 114.96037 82.22035 111.15643 83.264901 109.70131 83.622803 z " /><path
+     id="F"
+     style="opacity:1;fill:none;fill-opacity:0.844828;stroke:#654900;stroke-width:1.00012;stroke-dasharray:none;stroke-opacity:1"
+     d="M 108.73341 155.60807 L 108.42181 155.21688 L 119.90844 146.0686 L 131.81624 146.0686 L 141.78514 135.05842 L 151.61917 130.2892 L 157.00592 126.61139 L 157.00592 120.99003 L 154.60917 114.68344 L 156.95838 104.83908 L 151.11326 98.382625 L 136.71104 94.77561 L 131.81624 89.630705 L 121.94346 89.251917 L 112.73059 87.880941 L 108.77321 84.120964 L 109.11737 83.759745 L 102.58599 87.601371 C 102.58599 87.601371 100.66493 85.680533 98.743844 88.754272 C 96.822758 91.828011 96.054085 95.285657 96.054085 95.285657 L 94.901701 99.128316 C 94.901701 99.128316 96.438333 98.744073 92.211943 102.20203 C 87.985552 105.65999 86.064514 105.6597 86.064514 105.6597 L 91.827987 110.65474 C 91.827987 110.65474 96.438321 109.88602 93.7488 114.11241 C 91.059279 118.3388 89.522701 120.25984 89.522701 120.25984 L 89.138228 122.9496 L 94.133272 127.1757 C 94.133272 127.1757 94.133259 129.09676 95.670129 130.24941 C 97.206998 131.40207 100.2807 136.01289 100.2807 136.01289 L 102.58599 142.16031 C 102.58599 142.16031 99.896745 144.46559 99.896745 146.77089 C 99.896745 149.07619 103.35441 154.83964 103.35441 154.83964 L 108.73341 155.60807 z " /><path
+     id="E"
+     style="opacity:1;fill:none;fill-opacity:0.844828;stroke:#654900;stroke-width:1.00012;stroke-dasharray:none;stroke-opacity:1"
+     d="M 157.57436 187.76425 L 163.14043 187.51155 L 168.26363 183.75209 L 172.28302 172.81632 L 179.68567 168.74784 L 183.83012 168.74784 L 184.77322 164.40805 L 196.33944 161.94205 L 195.43355 156.50776 L 198.98165 148.10621 L 195.27955 145.57819 L 188.40245 145.57819 L 178.42994 139.20701 L 171.96108 131.16409 L 157.60123 127.41651 L 152.12095 131.15634 L 142.39648 135.87491 L 132.25963 147.06854 L 120.25778 147.06854 L 109.04502 155.99978 L 108.73341 155.60859 L 111.42317 167.51897 L 125.63884 175.58722 L 132.17074 172.89797 L 138.31817 175.97169 L 142.54479 178.27697 L 151.38146 182.11912 L 157.91336 184.03993 L 157.57436 187.76425 z " /><path
+     id="D"
+     style="opacity:1;fill:none;fill-opacity:0.844828;stroke:#654900;stroke-width:1.00012;stroke-dasharray:none;stroke-opacity:1"
+     d="M 252.81506 195.56739 L 252.54117 195.98442 L 245.37882 191.2736 L 235.40424 191.84772 L 226.43372 186.67956 L 224.72633 181.09592 L 218.83005 177.29099 L 212.72448 167.36911 L 196.89444 162.84742 L 185.61348 165.25193 L 184.63472 169.7483 L 179.94147 169.7483 L 173.09383 173.51189 L 169.09769 184.37893 L 163.48821 188.49806 L 157.56454 188.76522 L 157.91336 193.64554 L 151.76593 192.10869 L 146.38693 190.18736 C 146.38693 190.18736 143.31297 190.57182 141.39189 191.34026 C 139.4708 192.10869 137.16579 192.87712 137.16579 192.87712 L 134.47603 195.56687 L 138.31817 202.48273 L 139.0866 209.78254 L 146.00246 214.00916 L 154.45517 212.08783 L 154.45517 212.4723 L 156.3765 208.24569 L 161.37103 207.86173 L 164.44526 217.08287 L 169.43979 217.46683 L 171.74507 221.30897 L 174.81879 222.84583 L 178.66093 218.61973 L 182.11912 220.54054 L 185.57679 225.91954 L 194.79845 229.37773 L 199.40902 236.9075 L 204.78802 235.1412 L 212.45577 236.9075 L 217.34591 228.21346 L 223.86644 225.49683 L 230.38697 222.77968 L 235.54893 218.16136 L 239.89595 211.64083 L 242.44102 207.47726 L 246.28316 205.55645 L 246.28316 201.32983 L 252.81506 199.02454 L 252.81506 195.56739 z " /><path
+     id="C"
+     style="opacity:1;fill:none;fill-opacity:0.844828;stroke:#654900;stroke-width:1.00012;stroke-dasharray:none;stroke-opacity:1"
+     d="M 289.73529 149.4684 L 277.81612 144.10542 L 276.39036 143.98656 L 274.10162 141.31644 L 270.56436 141.31644 L 269.1877 138.5626 L 257.26957 135.9023 L 257.16622 135.67957 C 257.16622 135.67957 256.67279 134.64001 256.03295 133.60942 C 255.71304 133.09413 255.35421 132.58274 255.02526 132.22449 C 254.69631 131.86624 254.3866 131.72271 254.3514 131.72271 C 254.14925 131.72271 253.34039 131.82433 252.36909 131.98419 C 251.39779 132.14406 250.21591 132.35809 249.07214 132.57227 C 246.82915 132.99227 244.81873 133.39581 244.73803 133.41201 L 232.17756 141.33608 L 214.71093 138.84165 L 206.97651 144.31264 L 199.99606 148.27519 L 196.46863 156.62868 L 197.35229 161.9374 L 213.37302 166.51542 L 219.56231 176.57424 L 225.5759 180.45307 L 227.27553 186.00983 L 235.64453 190.83228 L 245.65219 190.25609 L 253.08998 195.1483 L 252.81506 195.56687 L 255.88877 194.79845 L 260.88382 191.72421 L 271.64182 193.64554 L 275.86792 194.41397 L 278.1732 192.10869 L 274.33106 187.88207 L 275.86792 185.96126 L 284.7051 185.57679 L 289.69963 178.27697 L 287.39434 173.28193 L 286.62592 169.43979 L 294.31072 166.36607 L 292.38939 159.06574 L 290.23706 158.75827 C 290.61506 158.6946 290.86898 158.24747 289.69963 156.3765 C 287.77854 153.30276 287.01039 152.53436 287.01039 152.53436 L 289.73529 149.4684 z " /><path
+     id="B"
+     style="opacity:1;fill:none;fill-opacity:0.844828;stroke:#654900;stroke-width:1.00012;stroke-dasharray:none;stroke-opacity:1"
+     d="M 276.25239 72.2328 L 276.63686 72.55061 L 272.29087 77.80662 L 269.18357 79.833887 C 269.1293 79.916503 268.56178 80.782363 267.80691 81.816195 C 267.41194 82.357132 266.98211 82.920582 266.57443 83.400594 C 266.16675 83.880605 265.8082 84.271773 265.42773 84.50957 C 264.78114 84.913697 262.76619 85.893207 260.82801 86.828292 C 258.88984 87.763377 257.08973 88.613196 257.08973 88.613196 L 250.39247 91.757707 L 248.49026 92.263619 L 246.17567 95.670129 L 235.35928 98.074117 L 235.09986 107.79497 L 236.65997 113.252 L 239.37092 115.1015 L 241.49999 115.1015 L 247.32806 122.63489 L 247.19163 128.2423 L 249.10469 131.54959 C 250.18426 131.34832 251.28444 131.15002 252.20683 130.99821 C 253.19089 130.83624 253.92254 130.72277 254.3514 130.72277 C 254.94717 130.72277 255.36201 131.10953 255.76372 131.54701 C 256.16543 131.9845 256.54372 132.53456 256.88251 133.08025 C 257.48957 134.05803 257.85535 134.83623 257.94705 135.02742 L 269.86932 137.68927 L 271.18138 140.3165 L 274.5605 140.3165 L 276.88284 143.02331 L 280.75961 143.34784 L 279.72246 143.86512 L 290.28926 148.6209 L 290.08462 149.07617 L 296.23153 146.38693 L 295.84757 141.39189 L 300.45815 137.93422 L 300.8421 134.09207 L 306.98953 133.32365 L 311.21615 135.24446 L 316.59515 129.48099 L 320.82124 129.48099 C 320.82124 129.48099 320.82125 125.63886 319.28439 124.10199 C 317.74751 122.56512 317.36357 120.25986 317.36357 118.72299 C 317.36357 117.18613 318.132 112.96003 318.132 112.96003 L 321.58967 111.42317 C 321.58967 111.42317 327.73716 110.65476 322.3581 109.11789 C 316.97907 107.58102 320.43729 105.27574 320.43729 105.27574 C 320.43729 105.27574 321.97418 102.20178 320.43729 101.81756 C 318.90043 101.43334 315.44224 100.66517 315.44224 100.66517 L 313.90539 97.206986 L 308.14243 95.670129 L 305.83715 89.522701 L 305.83715 87.601371 L 302.76343 83.375273 L 297.76839 82.606844 L 295.4631 78.764701 L 288.9312 79.148657 L 287.39434 78.380229 C 287.39434 78.380229 285.47329 76.843384 285.85749 75.306514 C 286.24172 73.769645 285.47353 71.848844 285.47353 71.848844 L 282.78377 69.927515 L 276.25239 72.2328 z " /><path
+     id="A"
+     style="opacity:1;fill:none;fill-opacity:0.844828;stroke:#654900;stroke-width:1.00012;stroke-dasharray:none;stroke-opacity:1"
+     d="M 240.13573 24.974186 L 236.67806 27.279472 L 232.83592 28.816329 L 227.45692 26.894999 L 227.07244 31.50557 L 223.2303 34.195329 L 223.61426 39.574329 L 217.8513 38.037472 L 215.92997 44.569373 L 212.4723 44.569373 L 210.55097 42.264087 L 202.48273 43.416471 L 197.48769 41.879614 L 194.79896 45.336768 L 195.29506 45.287158 L 195.94928 51.80459 L 193.02904 56.193469 L 194.35558 61.876843 L 193.05643 66.144283 L 196.99779 70.27323 L 197.93934 76.48422 C 198.20572 76.604537 202.02106 78.335082 205.02728 79.246326 C 206.70564 79.755064 207.54456 80.568773 207.91186 81.302531 C 208.12264 81.723596 208.04948 81.84361 208.05448 82.10765 L 211.27341 82.10765 L 212.85522 86.062447 L 221.60353 89.48446 L 224.41421 92.669796 C 224.77865 92.6473 227.09824 92.518738 229.85935 93.066154 C 231.48061 93.387583 232.81699 94.489584 233.76764 95.484611 C 234.38822 96.134157 234.84923 96.75416 235.09469 97.106734 L 245.57054 94.779228 L 247.87324 91.394421 L 250.04675 90.814612 L 256.66237 87.708858 C 256.66237 87.708858 258.46114 86.860307 260.39444 85.927572 C 262.32774 84.994838 264.45637 83.937156 264.89649 83.662077 C 265.05938 83.56027 265.43082 83.203775 265.81272 82.754122 C 266.19462 82.30447 266.61412 81.755381 267.00024 81.226567 C 267.77248 80.168941 268.41204 79.193616 268.41204 79.193616 L 268.46888 79.105249 L 271.61701 77.052661 L 275.8674 71.913957 L 276.25187 72.232284 L 274.33106 69.159086 L 272.02577 64.164042 L 267.03125 61.474801 L 265.10992 56.864229 L 268.5681 54.174471 L 263.95753 48.795471 L 260.88382 42.648043 L 258.96249 39.190373 L 254.73587 38.421944 L 251.66216 39.190373 L 248.20449 37.269043 L 245.8992 32.273999 L 243.97787 27.663428 L 240.13573 24.974186 z " /></svg>
+      
+      <!-- Overlay unit controls -->
+  <div v-for="id in territoryOrder"
+       :key="id"
+       class="territory-overlay"
+       :style="{ position:'absolute', left: territoryCenters[id].x+'px', top: territoryCenters[id].y+'px' }">
+    <strong>{{ id }}</strong>
 
-    <!-- Territories -->
-    <g v-for="id in territoryOrder" :key="id">
-      <!-- Example shapes for 5 land territories -->
-      <path v-if="id==='A'" d="M100,100 h200 v150 h-200 Z"
-            class="territory"
-            :class="{ selected: selected && selected.from === id }"
-            @click="handleTerritoryClick(id)" />
-      <path v-if="id==='B'" d="M400,120 h200 v150 h-200 Z"
-            class="territory"
-            :class="{ selected: selected && selected.from === id }"
-            @click="handleTerritoryClick(id)" />
-      <path v-if="id==='C'" d="M700,140 h200 v150 h-200 Z"
-            class="territory"
-            :class="{ selected: selected && selected.from === id }"
-            @click="handleTerritoryClick(id)" />
-      <path v-if="id==='D'" d="M250,350 h200 v150 h-200 Z"
-            class="territory"
-            :class="{ selected: selected && selected.from === id }"
-            @click="handleTerritoryClick(id)" />
-      <path v-if="id==='E'" d="M600,360 h200 v150 h-200 Z"
-            class="territory"
-            :class="{ selected: selected && selected.from === id }"
-            @click="handleTerritoryClick(id)" />
+    <!-- list units -->
+    <div v-for="u in map[id]?.units || []" :key="u.id" style="display:flex; gap:6px; align-items:center; margin-top:6px;">
+      <input v-if="selected && selected.from === id && u.owner === user.email"
+             type="checkbox"
+             class="checkbox"
+             :value="String(u.id)"
+             v-model="selected.selectedUnitIds" />
+      <div class="unit" :style="{ backgroundColor: u.color || '#999' }">{{ u.type }}</div>
+    </div>
 
-      <!-- Units list (keeps your checkbox + stepper logic) -->
-      <foreignObject v-if="map[id]?.units?.length"
-                     :x="territoryCenters[id].x"
-                     :y="territoryCenters[id].y"
-                     width="200" height="200">
-        <div xmlns="http://www.w3.org/1999/xhtml" style="display:flex; flex-direction:column;">
-          <div v-for="u in map[id]?.units || []" :key="u.id"
-               style="width:100%; display:flex; justify-content:space-between; align-items:center; margin-top:6px;">
-            <div style="display:flex; gap:6px; align-items:center;">
-              <input v-if="selected && selected.from === id && u.owner === user.email"
-                     type="checkbox"
-                     class="checkbox"
-                     :value="String(u.id)"
-                     v-model="selected.selectedUnitIds" />
-              <div class="unit" :style="{ backgroundColor: u.color || '#999' }">{{ u.type }}</div>
-            </div>
-          </div>
+    <!-- selection controls -->
+    <div v-if="selected && selected.from === id" style="margin-top:6px; display:flex; flex-direction:column; gap:6px;">
+      <div style="display:flex; gap:6px;">
+        <button class="btn btn-muted" @click.stop="selectAllFrom(id)">Select All</button>
+        <button class="btn btn-muted" @click.stop="cancelSelection()">Cancel</button>
+      </div>
+      <div class="stepper">
+        <button class="btn" @click.stop="decrementMoveCount()">-</button>
+        <div class="small">Move count: <strong>{{ selected.moveCount }}</strong></div>
+        <button class="btn" @click.stop="incrementMoveCount(id)">+</button>
+        <button class="btn btn-primary" @click.stop="applyMoveCountSelection(id)">Use Count</button>
+      </div>
+    </div>
+  </div>
 
-          <!-- Selection controls -->
-          <div v-if="selected && selected.from === id" style="margin-top:6px; display:flex; flex-direction:column; gap:6px;">
-            <div style="display:flex; gap:6px;">
-              <button class="btn btn-muted" @click.stop="selectAllFrom(id)">Select All</button>
-              <button class="btn btn-muted" @click.stop="cancelSelection()">Cancel</button>
-            </div>
-            <div class="stepper">
-              <button class="btn" @click.stop="decrementMoveCount()">-</button>
-              <div class="small">Move count: <strong>{{ selected.moveCount }}</strong></div>
-              <button class="btn" @click.stop="incrementMoveCount(id)">+</button>
-              <button class="btn btn-primary" @click.stop="applyMoveCountSelection(id)">Use Count</button>
-            </div>
-          </div>
-        </div>
-      </foreignObject>
-    </g>
-  </svg>
-</div>
+    </div>
 
     <div id="log" style="width:80%; margin:14px auto;">
       <h4 class="small">Battle Summary Log</h4>
@@ -266,14 +295,27 @@
         password: '',
         map: {},
         selected: null, // { from: "A", selectedUnitIds: [], moveCount: 0 }
-        territoryOrder: ["A","B","C","D","E","F","G","H","I","J"],
+        territoryOrder: ["A","B","C","D","E","F","G","H"],
         unitTypes: ["infantry","tank","artillery","fighter","bomber"],
         selectedUnitType: "infantry",
         activeBattle: null,
         battleSummaryLog: [],
         selectedCasualtiesDefender: [],
-        selectedCasualtiesAttacker: []
+        selectedCasualtiesAttacker: [],
+        territoryCenters: {
+          A: { x: 875, y: 225 },
+          B: { x: 1050, y: 400 },
+          C: { x: 950, y: 600 },
+          D: { x: 725, y: 750 },
+          E: { x: 575, y: 600 },
+          F: { x: 450, y: 450},
+          G: { x: 600, y: 275 },
+          H: { x: 750, y: 425}
+        }
+
+
       };
+
     },
     computed: {
       phase() {
@@ -289,6 +331,13 @@
         try { await auth.signInWithEmailAndPassword(this.email, this.password); }
         catch (e) { await auth.createUserWithEmailAndPassword(this.email, this.password); }
       },
+      async logout() {
+        await auth.signOut();
+        this.user = null;   // clear local state
+        this.map = {};      // optional: clear map
+        this.selected = null;
+      },
+
 
       // init map
       async ensureMapInitialized() {
@@ -296,7 +345,7 @@
         const snap = await ref.get();
         if (!snap.exists) {
           const newMap = {};
-          this.territoryOrder.forEach(id => newMap[id] = { units: [] });
+          this.territoryOrder.forEach(id => newMap[id] = { units: [], owner: null });
           await ref.set({ map: newMap });
         } else {
           const data = snap.data();
@@ -305,6 +354,7 @@
             if (!data.map[id]) { data.map[id] = { units: [] }; changed = true; }
           });
           if (changed) await ref.update({ map: data.map });
+          this.map = data.map; 
         }
       },
 
@@ -340,6 +390,36 @@
         const count = Math.max(0, Math.min(this.selected.moveCount || 0, units.length));
         this.selected.selectedUnitIds = units.slice(0, count).map(u => String(u.id));
       },
+      fillForTerritory(id) {
+        const territory = this.map[id];
+        if (!territory) return 'transparent';
+
+        // If there are units, use majority rule
+        if (territory.units.length) {
+          const counts = {};
+          territory.units.forEach(u => {
+            counts[u.owner] = (counts[u.owner] || 0) + 1;
+          });
+          const controller = Object.keys(counts).reduce((a,b) =>
+            counts[a] >= counts[b] ? a : b
+          );
+          return lightenHex(colorForUser(controller), 30);
+        }
+
+        // Otherwise, fall back to last known owner
+        if (territory.owner) {
+          return lightenHex(colorForUser(territory.owner), 30);
+        }
+
+        return 'transparent'; // neutral
+      },
+      onSvgClick(e) {
+    const id = e.target.id;
+      if (this.territoryOrder.includes(id)) {
+        this.handleTerritoryClick(id);
+      }
+    },
+
 
       // clicking a territory
       async handleTerritoryClick(id) {
@@ -348,80 +428,76 @@
         const data = snap.data() || { map: {} };
         if (!data.map[id]) data.map[id] = { units: [] };
 
+        // CASE 1: No selection yet
         if (!this.selected) {
-          // try to select source if it contains our units
           const ownUnits = (data.map[id].units || []).filter(u => u.owner === this.user.email);
           if (ownUnits.length) {
-            // start selection object with default fields
             this.selected = { from: id, selectedUnitIds: [], moveCount: 0 };
             return;
           }
-          // else place unit
-          const newUnit = { id: Date.now(), type: this.selectedUnitType, owner: this.user.email, color: colorForUser(this.user.email) };
+          // Place new unit
+          const newUnit = {
+            id: Date.now(),
+            type: this.selectedUnitType,
+            owner: this.user.email,
+            color: colorForUser(this.user.email)
+          };
           data.map[id].units.push(newUnit);
           await ref.update({ map: data.map });
+          this.map = data.map;
           return;
         }
 
-        // if already selected and click same territory => cancel
+        // CASE 2: Clicking same territory cancels
         if (this.selected.from === id) {
           this.selected = null;
           return;
         }
 
-        // moving from selected.from to id
+        // CASE 3: Move units
         const fromId = this.selected.from;
         const fromUnits = data.map[fromId].units || [];
 
-        // determine which units to move: prefer explicit selectedUnitIds, otherwise use moveCount or default single unit
+        // Determine which units to move
         let moveIds = (this.selected.selectedUnitIds || []).slice();
-        if (moveIds.length === 0 && this.selected.moveCount && this.selected.moveCount > 0) {
-          // pick first N of player's units
+        if (moveIds.length === 0 && this.selected.moveCount > 0) {
           const ownUnits = fromUnits.filter(u => u.owner === this.user.email);
           moveIds = ownUnits.slice(0, this.selected.moveCount).map(u => String(u.id));
         }
         if (moveIds.length === 0) {
-          // fallback: move first own unit
           const firstOwn = fromUnits.find(u => u.owner === this.user.email);
           if (!firstOwn) { this.selected = null; return; }
           moveIds = [String(firstOwn.id)];
         }
 
-        // gather units objects
-        const movingUnits = [];
-        for (const uid of moveIds) {
-          const idx = fromUnits.findIndex(u => String(u.id) === String(uid) && u.owner === this.user.email);
-          if (idx !== -1) {
-            movingUnits.push(fromUnits[idx]);
-          }
-        }
-        if (movingUnits.length === 0) { this.selected = null; return; }
+        // Gather unit objects
+        const movingUnits = fromUnits.filter(u => moveIds.includes(String(u.id)) && u.owner === this.user.email);
 
-        // remove moving units from origin
+        if (movingUnits.length > 0) { data.map[id].owner = this.user.email;}
+
+        // Remove from origin
         data.map[fromId].units = fromUnits.filter(u => !moveIds.includes(String(u.id)));
 
-        // if destination has enemies -> start interactive battle
+        // Destination logic
         const destUnits = data.map[id].units || [];
         const enemyUnits = destUnits.filter(u => u.owner && u.owner !== this.user.email);
 
         if (enemyUnits.length > 0) {
-            const defenderOwner = enemyUnits[0].owner || "unknown-owner";
-        
-            // Prevent Firestore crash:
-            if (!defenderOwner) {
-                console.error("ERROR: defenderOwner undefined. Units:", enemyUnits);
-                alert("Battle failed: Defender has an invalid owner. Fix unit data in Firestore.");
-                return;
-            }
+          const defenderOwner = enemyUnits[0].owner || "unknown-owner";
+          if (!defenderOwner) {
+            console.error("ERROR: defenderOwner undefined. Units:", enemyUnits);
+            alert("Battle failed: Defender has an invalid owner. Fix unit data in Firestore.");
+            return;
+          }
           const battleObj = {
             territory: id,
             attackerEmail: this.user.email,
             defenderEmail: defenderOwner,
-            attackerUnits: movingUnits.map(u => ({...u, id: String(u.id)})),
-            defenderUnits: destUnits.map(u => ({...u, id: String(u.id)})),
+            attackerUnits: movingUnits.map(u => ({ ...u, id: String(u.id) })),
+            defenderUnits: destUnits.map(u => ({ ...u, id: String(u.id) })),
             round: 1,
             phase: 'awaitingAttackerRoll',
-            nextToRoll: 'attacker',    // <-- NEW: who is allowed to roll next
+            nextToRoll: 'attacker',
             attackerRolls: [],
             defenderRolls: [],
             lastAttackerHits: 0,
@@ -434,10 +510,11 @@
           this.selected = null;
           return;
         } else {
-          // no enemy -> just move
-          data.map[id].units = data.map[id].units.concat(movingUnits);
-          this.selected = null;
+          // No enemy → just move
+          data.map[id].units = destUnits.concat(movingUnits);
           await ref.update({ map: data.map });
+          this.map = data.map;
+          this.selected = null;
           return;
         }
       },
@@ -599,8 +676,10 @@ async applyAttackerCasualties() {
 
         if (b.winner === 'attacker') {
           data.map[b.territory].units = (b.attackerUnits || []).map(u => ({...u, id: String(u.id)}));
+          data.map[b.territory].owner = b.attackerEmail;
         } else if (b.winner === 'defender') {
           data.map[b.territory].units = (b.defenderUnits || []).map(u => ({...u, id: String(u.id)}));
+          data.map[b.territory].owner = b.defenderEmail;
         } else {
           data.map[b.territory].units = (b.attackerUnits || []).concat(b.defenderUnits || []);
         }
@@ -629,8 +708,21 @@ async applyAttackerCasualties() {
         await ref.update({ map: data.map, activeBattle: firebase.firestore.FieldValue.delete() });
       }
     },
-
+    watch: {
+    map: {
+        deep: true,
+        handler() {
+          this.territoryOrder.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+              el.style.fill = this.fillForTerritory(id);
+            }
+          });
+        }
+      }
+    },
     mounted() {
+
       auth.onAuthStateChanged(async (u) => {
         this.user = u;
         if (u) await this.ensureMapInitialized();
@@ -647,6 +739,9 @@ async applyAttackerCasualties() {
           this.activeBattle.defenderUnits = (this.activeBattle.defenderUnits || []).map(u => ({...u, id: String(u.id)}));
         }
       });
+      
+      
+
     }
   });
 
@@ -654,6 +749,45 @@ async applyAttackerCasualties() {
 
   // helpers
   function rollDie() { return Math.floor(Math.random()*6)+1; }
+  function hexToHSL(hex) {
+    // Remove leading #
+    hex = hex.replace(/^#/, '');
+    let r = parseInt(hex.substring(0,2), 16) / 255;
+    let g = parseInt(hex.substring(2,4), 16) / 255;
+    let b = parseInt(hex.substring(4,6), 16) / 255;
+
+    const max = Math.max(r,g,b), min = Math.min(r,g,b);
+    let h, s, l = (max + min) / 2;
+
+    if (max === min) {
+      h = s = 0; // achromatic
+    } else {
+      const d = max - min;
+      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+      switch(max){
+        case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+        case g: h = (b - r) / d + 2; break;
+        case b: h = (r - g) / d + 4; break;
+      }
+      h /= 6;
+    }
+    return { h: h*360, s: s*100, l: l*100 };
+  }
+
+  function hslToHex(h, s, l) {
+    s /= 100; l /= 100;
+    const k = n => (n + h/30) % 12;
+    const a = s * Math.min(l, 1 - l);
+    const f = n => l - a * Math.max(-1, Math.min(k(n)-3, Math.min(9-k(n),1)));
+    const toHex = x => Math.round(x*255).toString(16).padStart(2,'0');
+    return `#${toHex(f(0))}${toHex(f(8))}${toHex(f(4))}`;
+  }
+
+  function lightenHex(hex, amount) {
+    const hsl = hexToHSL(hex);
+    const newL = Math.min(100, hsl.l + amount); // increase lightness
+    return hslToHex(hsl.h, hsl.s, newL);
+  }
 </script>
 </body>
 </html>
