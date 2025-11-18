@@ -9,6 +9,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="vue.js"></script>
 
   <style>
     body { font-family: sans-serif; margin: 0; background: #f2f2f2; text-align: center; }
@@ -133,7 +134,12 @@
              class="checkbox"
              :value="String(u.id)"
              v-model="selected.selectedUnitIds" />
-      <div class="unit" :style="{ backgroundColor: u.color || '#999' }">{{ u.type }}</div>
+      <div v-if="u.type!=='tank'" class="unit" :style="{ backgroundColor: u.color || '#999' }">{{ u.type }}</div>
+      <svg width="45px" style="stroke-width: 2px; stroke: black;" viewBox="0 0 75 50" version="1.1" id="svg1" xml:space="preserve" xmlns="http://www.w3.org/2000/svg" xmlns:svg="http://www.w3.org/2000/svg"><defs id="defs1" /><g
+     id="layer1"><path
+       d="m 15.553833,39.529829 c 15.14631,0.04528 30.29262,0.09056 45.43893,0.135842 1.988072,-1.614531 4.125492,-3.082429 6.019874,-4.788948 1.428563,-1.946624 2.966804,-3.816383 4.236145,-5.874596 -0.03854,-1.728094 -1.408124,-3.001579 -2.24138,-4.414844 -0.262654,-0.140319 0.271114,0.164042 -0.899584,-1.673642 -1.095561,-1.431314 -1.966501,-2.135823 -2.156848,-2.197837 -4.641123,-0.140588 -9.28059,-0.345368 -13.923738,-0.407524 -0.816985,-0.53938 -0.216809,-1.734232 -0.386045,-2.573211 -0.043,-1.641682 0.148722,-3.35503 -0.03792,-4.952854 -0.357467,-1.097624 -1.327489,-1.038323 -2.300792,-0.972825 -5.245343,0.0469 -10.533311,-0.266536 -15.748162,0.208899 -1.193572,0.369685 -2.018847,1.234505 -2.786246,2.177132 -0.980848,0.337727 -2.204226,0.07046 -3.277732,0.177049 L 7.9004708,14.600259 c -0.008,1.160657 -0.016009,2.321313 -0.024014,3.48197 6.6677722,-0.03202 13.3355432,-0.06403 20.0033152,-0.09605 1.323602,0.417486 0.239523,1.265176 -0.715716,0.908882 -2.545761,0.119613 -5.163258,-0.248258 -7.579098,0.784821 -1.561089,0.804775 -3.090535,1.894661 -4.354147,3.134145 -0.716291,0.567894 -1.108222,1.864091 -2.19158,1.607787 H 5.5951658 c -0.5690504,0.605145 -1.8892089,0.775378 -1.771825,1.777987 -0.045469,0.976813 -0.4199225,2.04236 0.4396534,2.775067 1.1690086,1.726271 2.313913,3.472936 3.9316172,4.819571 1.491165,1.461486 2.9046256,3.019355 4.7638166,4.024346 l 2.595406,1.711044 z"
+       id="path1" :fill="u.color" /></g></svg>
+
     </div>
 
     <!-- selection controls -->
@@ -328,8 +334,11 @@
     },
     methods: {
       async login() {
-        try { await auth.signInWithEmailAndPassword(this.email, this.password); }
-        catch (e) { await auth.createUserWithEmailAndPassword(this.email, this.password); }
+        try {
+            await auth.signInWithEmailAndPassword(this.email, this.password);
+          } catch (e) {
+            alert("Login failed: incorrect email or password.");
+          }
       },
       async logout() {
         await auth.signOut();
